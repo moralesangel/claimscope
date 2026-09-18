@@ -77,4 +77,5 @@ pythonpath = ["tests"]
 addopts = "-p no:langsmith_plugin"
 markers = [
     "llm: test hits the real LLM API; run on demand only",
+    "docker: test needs a reachable Docker daemon; skipped without one",
 ]

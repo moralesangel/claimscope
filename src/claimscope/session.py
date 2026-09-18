@@ -25,11 +25,16 @@ _ALLOWED_MODULES: tuple[tuple[str, str], ...] = (
     ("claimscope.schemas", "Claim"),
     ("claimscope.schemas", "ClaimList"),
     ("claimscope.schemas", "ClaimVerdict"),
+    ("claimscope.schemas", "CodePatch"),
+    ("claimscope.schemas", "GeneratedCode"),
     ("claimscope.schemas", "PaperSource"),
     ("claimscope.schemas", "ReductionPlan"),
     ("claimscope.schemas", "RunResult"),
     ("claimscope.schemas", "TriageDecision"),
     ("claimscope.schemas", "TriageResult"),
+    # Dataclasses, not Pydantic models, but they also travel in the state.
+    ("claimscope.sandbox.runner", "ExecutionFailure"),
+    ("claimscope.sandbox.runner", "ExecutionResult"),
 )
 
 

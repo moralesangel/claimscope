@@ -92,7 +92,34 @@ Otras notas:
   esquemas Pydantic, cliente LLM con validación y un reintento, y `claimscope analyze <arxiv_id>`.
 - **Fase 2 (triage, plan e interrupt): completada.** Nodos `triage`, `design_plan` y `review` con
   `interrupt`, checkpointer SQLite, y los comandos `resume` y `threads`.
-- Siguiente: fase 3 (sandbox Docker, `codegen` from_scratch, `execute` con dry run y bucle `debug`).
+- **Fase 3 (sandbox y ejecución): implementada, ACEPTACIÓN PENDIENTE.** `Runner`,
+  `DockerCPURunner`, `codegen` from_scratch, `execute` con dry run y bucle `debug`.
+
+  **Docker no está instalado en esta máquina**, así que el criterio de aceptación (un claim de
+  juguete de punta a punta en CPU en menos de 15 min) **no se ha verificado**. El código está
+  completo y testeado contra un `FakeRunner`; `tests/test_sandbox_integration.py` contiene las
+  pruebas de contención reales y se saltan solas mientras no haya demonio. Al instalar Docker:
+  `uv run python -m pytest -m docker` y luego una ejecución real.
+
+  Docker Desktop necesita WSL2, que a su vez requiere administrador y reiniciar. Ninguna de las
+  dos cosas se puede hacer desde esta sesión.
+- Siguiente: completar la aceptación de la fase 3 con Docker, o fase 4 (`stats.py`, `analyze`,
+  `report`), que es matemática pura y no necesita sandbox.
+
+### Notas de la fase 3
+
+- **Los tipos del sandbox también van en `_ALLOWED_MODULES`.** `ExecutionFailure` y
+  `ExecutionResult` viajan en el estado del grafo; `ExecutionRequest` e `ImageSpec` no. El guard de
+  `tests/test_session.py` detectó esta omisión al añadir `GeneratedCode` y `CodePatch`.
+- **`execute` para en el primer fallo.** Un script roto falla igual para cada semilla; seguir solo
+  gasta presupuesto antes de que `debug` pueda arreglarlo.
+- **El dry run mide, no adivina.** Ejecuta `--steps 20`, extrapola con `full_run_steps`, y si no
+  cabe en lo que queda de presupuesto marca el claim en `over_budget_claim_ids` en vez de empezar
+  un estudio que no terminará.
+- **El validador de código quita fences de markdown** (`strip_markdown_fences`) porque el modelo
+  los añade pese a que el prompt lo prohíbe, y respeta los backticks que estén dentro del código.
+- Cuidado al probar fences desde PowerShell: el backtick es su carácter de escape y corrompe la
+  entrada. Usa un fichero `.py`, no `-c` con here-string.
 
 ### Notas de la fase 2
 

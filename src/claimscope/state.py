@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+from claimscope.sandbox.runner import ExecutionFailure
 from claimscope.schemas import Claim, ClaimVerdict, ReductionPlan, RunResult
 
 
@@ -25,9 +26,19 @@ class GraphState(TypedDict, total=False):
     plan_feedback: dict[str, str]
     """Reviewer feedback per claim, fed back into design_plan on a rejection."""
 
-    workspace_dir: str
+    workspace_dirs: dict[str, str]
+    """Per-claim sandbox workspace; each is the only directory mounted for it."""
+
     run_results: dict[str, list[RunResult]]
+    execution_failures: dict[str, ExecutionFailure]
+    """Claims whose last run failed, awaiting the debug node."""
+
     debug_attempts: dict[str, int]
+    abandoned_claim_ids: dict[str, str]
+    """Claims given up on, mapped to why. Reported as inconclusive."""
+
+    over_budget_claim_ids: list[str]
+    """Claims whose measured cost exceeded the remaining budget."""
 
     budget_minutes_total: float
     budget_minutes_used: float

@@ -11,9 +11,15 @@ from langgraph.types import Command
 
 from claimscope.config import Settings
 from claimscope.graph import build_graph
-from claimscope.schemas import ClaimList, PaperSource, ReductionPlan, TriageResult
+from claimscope.schemas import (
+    ClaimList,
+    GeneratedCode,
+    PaperSource,
+    ReductionPlan,
+    TriageResult,
+)
 from claimscope.session import checkpointer, list_threads, new_thread_id, thread_config
-from stubs import StubLLM
+from stubs import FakeRunner, StubLLM
 
 PAPER_ID = "2401.00001"
 
@@ -57,8 +63,15 @@ def test_interrupted_run_resumes_from_disk(
     # Everything from the first half is now out of scope, as if the CLI exited.
 
     # --- second process: reopen the database and finish the run ---
+    # Resuming still needs codegen, but nothing before it: the earlier work was
+    # recovered from disk, not recomputed.
     with checkpointer(settings) as saver:
-        graph = build_graph(settings, StubLLM([]), checkpointer=saver)
+        graph = build_graph(
+            settings,
+            StubLLM([GeneratedCode(code="print(1)")]),
+            saver,
+            FakeRunner(seconds_per_call=0.01),
+        )
 
         snapshot = graph.get_state(config)
         assert snapshot.values["paper_id"] == PAPER_ID
@@ -74,6 +87,7 @@ def test_interrupted_run_resumes_from_disk(
 
     assert final["approved_plan_ids"] == ["residual_beats_plain"]
     assert "__interrupt__" not in final
+    assert final["run_results"]["residual_beats_plain"]
 
 
 def test_the_checkpoint_file_is_created_under_runs(

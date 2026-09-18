@@ -92,6 +92,40 @@ class ReductionPlan(BaseModel):
     code_source: CodeSource
 
 
+def strip_markdown_fences(value: str) -> str:
+    """Remove code fences the model sometimes adds despite being told not to."""
+    lines = value.strip().splitlines()
+
+    # An opening fence is a line that is just ``` plus an optional language tag.
+    if lines and lines[0].lstrip().startswith("```"):
+        lines = lines[1:]
+        if lines and lines[-1].strip().startswith("```"):
+            lines = lines[:-1]
+
+    text = "\n".join(lines).strip()
+    if not text:
+        raise ValueError("generated code must not be empty")
+    return text
+
+
+class GeneratedCode(BaseModel):
+    """The experiment script produced by codegen."""
+
+    code: str = Field(description="Complete contents of run.py, with no markdown fences.")
+    summary: str = Field(default="", description="One line describing what the script does.")
+
+    _strip = field_validator("code")(staticmethod(strip_markdown_fences))
+
+
+class CodePatch(BaseModel):
+    """A fix proposed by the debug node after a failed run."""
+
+    diagnosis: str = Field(description="What went wrong, in one or two sentences.")
+    code: str = Field(description="The full corrected run.py.")
+
+    _strip = field_validator("code")(staticmethod(strip_markdown_fences))
+
+
 class RunResult(BaseModel):
     """One (arm, seed) execution."""
 

@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     seeds_per_arm: int = 3
     max_debug_attempts: int = 3
 
+    full_run_steps: int = 500
+    """Steps a full run is assumed to take, used to extrapolate the dry run."""
+
     # Sandbox limits.
     docker_image: str = "claimscope-cpu:latest"
     sandbox_cpus: float = 2.0

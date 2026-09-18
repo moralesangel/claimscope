@@ -11,9 +11,9 @@ from langgraph.types import Command
 
 from claimscope.config import Settings
 from claimscope.graph import build_graph
-from claimscope.schemas import PaperSource, ReductionPlan
+from claimscope.schemas import GeneratedCode, PaperSource, ReductionPlan
 from claimscope.session import thread_config
-from stubs import StubLLM
+from stubs import FakeRunner, StubLLM
 
 PAPER_ID = "2401.00001"
 
@@ -69,10 +69,12 @@ def test_graph_pauses_for_review(
     assert [r["claim_id"] for r in payload["requests"]] == ["residual_beats_plain"]
 
 
-def test_approving_finishes_the_run(
+def test_approving_moves_on_to_execution(
     settings: Settings, planning_llm: StubLLM, fake_paper: PaperSource
 ) -> None:
-    graph = build_graph(settings, planning_llm, checkpointer=InMemorySaver())
+    # Approval now leads into codegen and execute, so both need stand-ins.
+    planning_llm.responses.append(GeneratedCode(code="print(1)"))
+    graph = build_graph(settings, planning_llm, InMemorySaver(), FakeRunner(seconds_per_call=0.01))
     config = thread_config("t-1")
     graph.invoke({"paper_id": PAPER_ID}, config)
 
@@ -83,6 +85,7 @@ def test_approving_finishes_the_run(
 
     assert final["approved_plan_ids"] == ["residual_beats_plain"]
     assert "__interrupt__" not in final
+    assert final["run_results"]["residual_beats_plain"]
 
 
 def test_rejecting_sends_the_plan_back_for_redesign(

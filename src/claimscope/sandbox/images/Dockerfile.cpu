@@ -1,0 +1,17 @@
+# Reference base image for CPU experiments.
+#
+# The runner builds its image in memory from docker_runner.DOCKERFILE_CPU, adding
+# whatever packages a plan needs. This file documents that base and can be built
+# by hand for debugging:
+#
+#     docker build -f Dockerfile.cpu -t claimscope-cpu:latest .
+
+FROM python:3.11-slim
+
+# Generated code is untrusted and never runs as root.
+RUN useradd --create-home --uid 1000 runner
+
+RUN pip install --no-cache-dir --upgrade pip
+
+USER runner
+WORKDIR /workspace

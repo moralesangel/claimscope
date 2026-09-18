@@ -10,9 +10,15 @@ refuta el paper, y el informe siempre lo indica.
 
 ## Estado
 
-Fase 2 completada: ingesta, extracción de afirmaciones, triage, diseño del plan reducido y
-aprobación humana con posibilidad de reanudar. El plan de implementación está en [PLAN.md](PLAN.md)
-y las reglas de trabajo en [CLAUDE.md](CLAUDE.md).
+Fases 0 a 2 completadas: ingesta, extracción de afirmaciones, triage, diseño del plan reducido y
+aprobación humana con posibilidad de reanudar.
+
+Fase 3 (sandbox Docker, generación de código y ejecución) está implementada pero **sin verificar de
+punta a punta**, porque la máquina de desarrollo no tiene Docker instalado. Requiere Docker Desktop
+para ejecutar experimentos.
+
+El plan de implementación está en [PLAN.md](PLAN.md) y las reglas de trabajo en
+[CLAUDE.md](CLAUDE.md).
 
 ## Instalación
 
@@ -59,4 +65,14 @@ por eso los comandos se invocan como `python -m`. Ver [CLAUDE.md](CLAUDE.md) par
 uv run python -m ruff check .
 uv run python -m mypy src
 uv run python -m pytest
+
+# Pruebas de contención del sandbox. Necesitan Docker; sin él se saltan solas.
+uv run python -m pytest -m docker
 ```
+
+## Seguridad
+
+El código que genera el modelo **nunca se ejecuta fuera del sandbox**. Cada experimento corre en un
+contenedor Docker sin red, con usuario no root, sistema de ficheros raíz de solo lectura, todas las
+capabilities eliminadas y límites de CPU, memoria, procesos y tiempo. Lo único que se monta es el
+directorio de trabajo de ese claim.
