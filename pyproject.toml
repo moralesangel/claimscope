@@ -29,6 +29,10 @@ dev = [
     "ruff>=0.5",
     "mypy>=1.10",
 ]
+# Optional: self-hostable tracing. LangSmith needs nothing extra.
+tracing = [
+    "langfuse>=2.50",
+]
 
 [project.scripts]
 claimscope = "claimscope.cli:app"
@@ -71,7 +75,7 @@ strict = true
 files = ["src", "eval"]
 
 [[tool.mypy.overrides]]
-module = ["arxiv.*", "fitz.*", "docker.*", "scipy.*"]
+module = ["arxiv.*", "fitz.*", "docker.*", "scipy.*", "langfuse.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -21,6 +21,7 @@ from claimscope.session import (
     new_thread_id,
     thread_config,
 )
+from claimscope.tracing import traced_run
 
 app = typer.Typer(
     name="claimscope",
@@ -167,9 +168,11 @@ def analyze(
     thread_id = new_thread_id(paper_id)
 
     try:
-        with checkpointer(settings) as saver:
+        with (
+            checkpointer(settings) as saver,
+            traced_run(settings, thread_config(thread_id)) as config,
+        ):
             graph = build_graph(settings, checkpointer=saver)
-            config = thread_config(thread_id)
             with console.status(f"Analyzing {paper_id}..."):
                 started = graph.invoke({"paper_id": paper_id}, config)
 

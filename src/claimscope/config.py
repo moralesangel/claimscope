@@ -72,6 +72,8 @@ class Settings(BaseSettings):
 
     # Tracing is optional; the app must work without it.
     tracing_enabled: bool = False
+    tracing_backend: Literal["langsmith", "langfuse"] = "langsmith"
+    tracing_project: str = "claimscope"
 
 
 def get_settings() -> Settings:

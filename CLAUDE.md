@@ -116,8 +116,23 @@ Otras notas:
   **Limitación conocida:** las métricas de ejecución y de veredicto no se pueden medir sin Docker.
   El harness devuelve `measured=False` y la tabla muestra `—`, no `0.00`: un cero afirmaría que el
   agente falló, cuando lo cierto es que no se midió.
-- Siguiente: completar las aceptaciones de las fases 3 y 5 con Docker, ampliar a 10-15 papers
-  anotados, o fase 7 (pulido: trazas, README con diagrama, resultados).
+- **Corpus de evaluación ampliado a 13 papers, 90 claims.** Cumple los 10-15 del plan, con tests que
+  vigilan su equilibrio.
+- **Fase 7 (pulido): completada.** Trazas opcionales (LangSmith y Langfuse), README reescrito con
+  diagrama del grafo, limitaciones y posicionamiento frente a PaperBench y CORE-Bench.
+- Pendiente, y bloqueado por el entorno, no por el código: la aceptación de las fases 3 y 5
+  (ejecución real con Docker) y la validación de triage/planes con un LLM real.
+
+### Notas de la fase 7
+
+- **Las trazas nunca pueden tumbar una ejecución.** Backend mal configurado, paquete ausente o host
+  inalcanzable: se avisa y se sigue sin trazas. `tests/test_tracing.py` lo comprueba explícitamente.
+- **Hay que hacer flush al salir.** Los clientes de trazas agrupan en segundo plano, y una ejecución
+  corta de CLI termina antes de que se envíe nada.
+- `langsmith` funciona aquí porque el shim de `xxhash` lo desbloquea; `langfuse` es un extra
+  opcional (`uv sync --extra tracing`).
+- **El corpus de evaluación no tenía ningún claim que se esperase contradecir.** Eso habría dado
+  nota perfecta a un agente adulador. MAML aporta dos, y hay un test que impide la regresión.
 
 ### Notas de la fase 6
 
