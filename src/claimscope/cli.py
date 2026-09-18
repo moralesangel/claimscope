@@ -36,6 +36,38 @@ def config() -> None:
         console.print(f"{key}: {value}")
 
 
+def _report_failure(exc: Exception, verbose: bool) -> None:
+    """Turn a library traceback into an actionable one-liner.
+
+    The underlying errors surface as long stack traces from anthropic and
+    langchain; what the user needs is the cause and the fix.
+    """
+    message = str(exc)
+    hints = (
+        (
+            "credit balance is too low",
+            "Add credits in the Anthropic console under Plans & Billing.",
+        ),
+        ("authentication_error", "Check ANTHROPIC_API_KEY in your .env file."),
+        ("invalid x-api-key", "Check ANTHROPIC_API_KEY in your .env file."),
+        ("ANTHROPIC_API_KEY is not set", "Copy .env.example to .env and fill in your API key."),
+        ("rate_limit", "Rate limited by the API. Wait a moment and retry."),
+    )
+
+    for needle, hint in hints:
+        if needle.lower() in message.lower():
+            console.print(f"[red]Error:[/red] {hint}")
+            if verbose:
+                console.print_exception()
+            return
+
+    console.print(f"[red]Error:[/red] {message}")
+    if verbose:
+        console.print_exception()
+    else:
+        console.print("[dim]Re-run with --verbose for the full traceback.[/dim]")
+
+
 @app.command()
 def analyze(
     paper_id: str = typer.Argument(help="arXiv id, e.g. 1512.03385"),
@@ -50,8 +82,12 @@ def analyze(
     from claimscope.graph import build_graph
 
     settings = get_settings()
-    with console.status(f"Analyzing {paper_id}..."):
-        result = build_graph(settings).invoke({"paper_id": paper_id})
+    try:
+        with console.status(f"Analyzing {paper_id}..."):
+            result = build_graph(settings).invoke({"paper_id": paper_id})
+    except Exception as exc:  # the CLI reports failures, it does not recover from them
+        _report_failure(exc, verbose)
+        raise typer.Exit(1) from exc
 
     console.print(f"\n[bold]{result.get('paper_title', paper_id)}[/bold]")
     if repo := result.get("repo_url"):
