@@ -1,0 +1,49 @@
+{
+  "paper_id": "1907.11692",
+  "title": "RoBERTa: A Robustly Optimized BERT Pretraining Approach",
+  "notes": "Almost nothing here is testable, which is the point of including it. Every claim is about how to pretrain a large language model, and the effects are created by data and compute scale. A good triage should reject nearly all of this; an agent that shrinks BERT pretraining to a CPU budget would be measuring noise.",
+  "claims": [
+    {
+      "text": "Training BERT longer, with bigger batches and more data, improves downstream task performance.",
+      "claim_type": "scaling_trend",
+      "testable": false,
+      "source_location": "Table 4",
+      "notes": "Explicitly a claim about scale. Shrinking removes the very thing being claimed."
+    },
+    {
+      "text": "Removing the next sentence prediction objective matches or improves downstream performance compared to keeping it.",
+      "claim_type": "ablation",
+      "testable": false,
+      "source_location": "Table 2",
+      "notes": "A clean ablation in shape, but each arm requires pretraining a transformer on a large corpus. Not feasible on a small CPU budget."
+    },
+    {
+      "text": "Dynamic masking performs comparably to or slightly better than the static masking used in the original BERT.",
+      "claim_type": "ablation",
+      "testable": false,
+      "source_location": "Table 1",
+      "notes": "The reported difference is a few tenths of a point after full pretraining; unreachable at reduced scale."
+    },
+    {
+      "text": "Training on full sentences without the next-sentence-prediction loss outperforms the original segment-pair input format.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Table 2",
+      "notes": "Again requires pretraining runs per arm."
+    },
+    {
+      "text": "RoBERTa reaches 88.5 on the GLUE leaderboard.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Table 5",
+      "notes": "A headline leaderboard number."
+    },
+    {
+      "text": "A larger byte-level BPE vocabulary performs slightly worse on some tasks but is preferred for its universality.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Sec. 4.4",
+      "notes": "Mixes an empirical comparison with a design preference, and still requires pretraining."
+    }
+  ]
+}

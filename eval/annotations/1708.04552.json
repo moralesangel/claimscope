@@ -1,0 +1,54 @@
+{
+  "paper_id": "1708.04552",
+  "title": "Improved Regularization of Convolutional Neural Networks with Cutout",
+  "notes": "Close to an ideal case: a single-knob augmentation ablation, on CIFAR, with an official repository. Both arms are identical but for the augmentation, so the reduction is nearly free of judgement calls.",
+  "claims": [
+    {
+      "text": "Adding cutout augmentation lowers test error on CIFAR-10 compared to the same network trained without it.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 1",
+      "notes": "The core claim, and the cleanest possible shape for reduced-scale testing."
+    },
+    {
+      "text": "Cutout lowers test error on CIFAR-100 compared to the same network without it.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 1",
+      "notes": "Same mechanism on a harder label set; still small enough to subsample."
+    },
+    {
+      "text": "Cutout combines with existing data augmentation to give a further improvement, rather than substituting for it.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Table 1",
+      "notes": "An interaction between two augmentations; resolving it needs more power than three seeds give."
+    },
+    {
+      "text": "The optimal cutout patch size varies by dataset, and performance degrades if the patch is too large.",
+      "claim_type": "scaling_trend",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 3",
+      "notes": "A trend over patch size with a clear turning point; three or four sizes make this visible."
+    },
+    {
+      "text": "A WideResNet with cutout reaches 3.08% test error on CIFAR-10.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Table 1",
+      "notes": "A headline number."
+    },
+    {
+      "text": "Cutout improves results on SVHN relative to the same network without it.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Table 2",
+      "notes": "SVHN is much easier, so the reported gain is small and may not clear the noise at reduced scale."
+    }
+  ]
+}

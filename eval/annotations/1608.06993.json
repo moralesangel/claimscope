@@ -1,0 +1,61 @@
+{
+  "paper_id": "1608.06993",
+  "title": "Densely Connected Convolutional Networks",
+  "notes": "An architecture comparison with an official repository. The parameter-efficiency claim is the interesting one: it compares two architectures at matched parameter counts, which is exactly the kind of controlled comparison that shrinks well.",
+  "claims": [
+    {
+      "text": "A DenseNet reaches lower test error than a ResNet with a comparable number of parameters on CIFAR-10.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 2",
+      "notes": "Both arms are convnets on CIFAR-10 at matched capacity; shrinks to small variants cleanly."
+    },
+    {
+      "text": "DenseNets need fewer parameters than ResNets to reach the same accuracy.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 4",
+      "notes": "The parameter-efficiency claim, measurable by matching accuracy and comparing sizes at small scale."
+    },
+    {
+      "text": "The advantage of DenseNet over ResNet is larger on CIFAR-100 and without data augmentation.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Table 2",
+      "notes": "A comparison of two effect sizes, which needs more statistical power than three seeds give."
+    },
+    {
+      "text": "Dense connectivity acts as a regulariser, reducing overfitting on tasks without data augmentation.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Sec. 5",
+      "notes": "Plausible at small scale but entangled with the architecture change itself."
+    },
+    {
+      "text": "DenseNet-BC with 190 layers reaches 3.46% error on CIFAR-10 with data augmentation.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Table 2",
+      "notes": "A headline number from a 190-layer network."
+    },
+    {
+      "text": "DenseNets achieve comparable accuracy to ResNets on ImageNet with half the parameters and half the computation.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Fig. 3",
+      "notes": "ImageNet-scale training, far outside a small CPU budget."
+    },
+    {
+      "text": "The compression and bottleneck layers (DenseNet-BC) improve parameter efficiency over the plain DenseNet.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 4",
+      "notes": "An internal ablation of the same architecture, which is the cleanest kind of claim here."
+    }
+  ]
+}

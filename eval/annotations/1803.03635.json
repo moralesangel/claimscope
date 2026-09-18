@@ -1,0 +1,61 @@
+{
+  "paper_id": "1803.03635",
+  "title": "The Lottery Ticket Hypothesis: Finding Sparse, Trainable Neural Networks",
+  "notes": "A known-contested result, included deliberately. The original experiments are on LeNet/MNIST and small CIFAR convnets, so they fit a small budget. Later work (Liu et al. 2019, Gale et al. 2019, Frankle et al. 2020 on rewinding) found the effect does not hold at larger scale or with standard one-shot pruning, which makes this a good test of whether the agent's verdicts are honest rather than confirmatory.",
+  "claims": [
+    {
+      "text": "A pruned subnetwork trained from its original initialisation reaches higher test accuracy than the same subnetwork structure trained from a fresh random initialisation.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 4",
+      "notes": "The central claim: the winning ticket beats random reinitialisation. On LeNet/MNIST this is exactly the original setting, so it should reproduce."
+    },
+    {
+      "text": "Winning tickets reach test accuracy comparable to the original dense network in a similar number of iterations.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Fig. 1",
+      "notes": "A claim of comparability rather than superiority; at reduced scale a small difference is unlikely to be resolvable."
+    },
+    {
+      "text": "Winning tickets show a smaller gap between training and test accuracy than the unpruned network.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Appendix D",
+      "notes": "A generalisation-gap comparison, measurable on a small MNIST network."
+    },
+    {
+      "text": "Iterative pruning finds smaller winning tickets than one-shot pruning at the same accuracy.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Sec. 4",
+      "notes": "Iterative pruning needs many train-prune rounds, so a reduced budget may not resolve the difference."
+    },
+    {
+      "text": "Winning tickets are less than 10-20% of the size of the original network.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Abstract",
+      "notes": "A specific sparsity figure."
+    },
+    {
+      "text": "The lottery ticket effect holds for deeper convolutional networks on CIFAR-10 as well as for fully connected networks on MNIST.",
+      "claim_type": "scaling_trend",
+      "testable": false,
+      "source_location": "Sec. 4",
+      "notes": "A claim about how the effect behaves with scale. Later work found it breaks down on larger models, which is precisely what shrinking cannot settle."
+    },
+    {
+      "text": "Winning tickets found with a higher learning rate require learning rate warmup to be found at all.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Sec. 5",
+      "notes": "A sensitive interaction between hyperparameters; unlikely to be cleanly resolvable in a few reduced-scale seeds."
+    }
+  ]
+}

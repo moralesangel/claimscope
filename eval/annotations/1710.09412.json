@@ -1,0 +1,61 @@
+{
+  "paper_id": "1710.09412",
+  "title": "mixup: Beyond Empirical Risk Minimization",
+  "notes": "A regularisation paper with an official repository (facebookresearch/mixup-cifar10) and CIFAR-10 experiments, so it is a good candidate for the official_repo path. The corrupted-label experiment is the most interesting claim: it is a large, clean effect that should survive shrinking.",
+  "claims": [
+    {
+      "text": "Training with mixup gives lower test error on CIFAR-10 than standard empirical risk minimisation with the same architecture.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 1",
+      "notes": "The core comparison. Both arms are the same network, differing only in the data augmentation, which is the ideal shape for reduced-scale testing."
+    },
+    {
+      "text": "Models trained with mixup memorise randomly corrupted labels less than models trained with standard ERM.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 4",
+      "notes": "A large effect that appears even with heavy label noise on a small subset."
+    },
+    {
+      "text": "Mixup improves robustness to adversarial examples relative to ERM.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Table 5",
+      "notes": "Requires running an attack as well as training; at reduced scale the measurement is noisy."
+    },
+    {
+      "text": "Mixup stabilises the training of generative adversarial networks.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Sec. 3.6",
+      "notes": "GAN stability is hard to measure reliably and does not reduce cleanly to a single metric with a clear direction."
+    },
+    {
+      "text": "A ResNet-50 trained with mixup reaches 22.1% top-1 error on ImageNet.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Table 2",
+      "notes": "A headline number requiring ImageNet training."
+    },
+    {
+      "text": "Larger values of the mixup interpolation strength alpha increase the difficulty of memorising corrupted labels.",
+      "claim_type": "scaling_trend",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Table 4",
+      "notes": "A trend over alpha, testable with three or four values but noisy at small scale."
+    },
+    {
+      "text": "Mixup outperforms ERM on the UCI tabular datasets.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Sec. 3.7",
+      "notes": "Small datasets, so cheap to run, but the reported differences are small."
+    }
+  ]
+}

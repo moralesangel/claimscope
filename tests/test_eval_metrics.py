@@ -353,3 +353,78 @@ class TestRealAnnotations:
     def test_files_are_valid_json(self) -> None:
         for path in ANNOTATIONS.glob("*.json"):
             json.loads(path.read_text(encoding="utf-8"))
+
+    def test_the_filename_matches_the_paper_id(self) -> None:
+        for path in ANNOTATIONS.glob("*.json"):
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            assert payload["paper_id"] == path.stem
+
+    def test_every_testable_claim_has_an_expected_verdict(self) -> None:
+        # A testable claim with no expectation contributes nothing to the score.
+        for annotation in load_annotations(ANNOTATIONS):
+            for claim in annotation.testable_claims:
+                assert claim.expected_verdict is not None, (
+                    f"{annotation.paper_id}: {claim.text[:50]}"
+                )
+
+
+class TestCorpusBalance:
+    """A lopsided corpus produces flattering metrics.
+
+    These are deliberately loose: they catch a corpus drifting into one shape,
+    not small fluctuations as papers are added.
+    """
+
+    def test_there_are_enough_papers(self) -> None:
+        # PLAN.md section 9 asks for 10-15.
+        assert len(load_annotations(ANNOTATIONS)) >= 10
+
+    def test_all_four_claim_types_appear(self) -> None:
+        types = {
+            claim.claim_type
+            for annotation in load_annotations(ANNOTATIONS)
+            for claim in annotation.claims
+        }
+
+        assert types == {"absolute", "comparative", "ablation", "scaling_trend"}
+
+    def test_testable_and_untestable_are_both_well_represented(self) -> None:
+        claims = [c for a in load_annotations(ANNOTATIONS) for c in a.claims]
+        testable = sum(1 for claim in claims if claim.testable)
+
+        assert 0.3 < testable / len(claims) < 0.85
+
+    def test_some_claims_are_expected_to_be_contradicted(self) -> None:
+        """Without these, the corpus cannot tell whether the agent ever says no.
+
+        A harness that only ever rewards agreement would score a sycophantic
+        agent perfectly, which is the opposite of what this tool is for.
+        """
+        verdicts = [
+            claim.expected_verdict
+            for annotation in load_annotations(ANNOTATIONS)
+            for claim in annotation.claims
+            if claim.expected_verdict
+        ]
+
+        assert "not_consistent_at_reduced_scale" in verdicts
+
+    def test_all_three_testable_verdicts_are_represented(self) -> None:
+        verdicts = {
+            claim.expected_verdict
+            for annotation in load_annotations(ANNOTATIONS)
+            for claim in annotation.claims
+            if claim.expected_verdict
+        }
+
+        assert verdicts == {
+            "consistent_at_reduced_scale",
+            "not_consistent_at_reduced_scale",
+            "inconclusive",
+        }
+
+    def test_at_least_one_paper_is_almost_entirely_untestable(self) -> None:
+        # Triage must be able to refuse a whole paper, not just individual claims.
+        annotations = load_annotations(ANNOTATIONS)
+
+        assert any(len(a.testable_claims) == 0 for a in annotations)

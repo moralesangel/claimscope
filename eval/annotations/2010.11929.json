@@ -1,0 +1,59 @@
+{
+  "paper_id": "2010.11929",
+  "title": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale",
+  "notes": "Included as the hardest case for triage. The paper's central finding is explicitly about scale: Vision Transformers lose to ResNets on small data and only win once pretrained on very large datasets. An agent that marks the headline claims testable and shrinks them would produce a confidently wrong answer, so most of this annotation is not testable on purpose.",
+  "claims": [
+    {
+      "text": "A Vision Transformer pretrained on a large dataset outperforms a comparable ResNet on ImageNet.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Table 2",
+      "notes": "Requires JFT-300M or ImageNet-21k pretraining. The effect is created by the pretraining scale, so shrinking destroys the thing being claimed."
+    },
+    {
+      "text": "Vision Transformers perform worse than ResNets of comparable size when trained on mid-sized datasets without strong regularisation.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 3",
+      "notes": "This is the direction that survives shrinking: at small data the transformer's weaker inductive bias hurts. Testable with a small ViT and a small ResNet on a CIFAR-10 subset."
+    },
+    {
+      "text": "The advantage of Vision Transformers over ResNets grows as the size of the pretraining dataset increases.",
+      "claim_type": "scaling_trend",
+      "testable": false,
+      "source_location": "Fig. 3",
+      "notes": "A scaling claim spanning ImageNet to JFT-300M. Three small points cannot stand in for that range."
+    },
+    {
+      "text": "Vision Transformers use substantially less compute to pretrain than comparable convolutional networks at the same accuracy.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Fig. 5",
+      "notes": "A compute-efficiency claim measured in TPU-core-days at large scale."
+    },
+    {
+      "text": "ViT-H/14 reaches 88.55% top-1 accuracy on ImageNet.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Table 2",
+      "notes": "A headline number."
+    },
+    {
+      "text": "Learned 1D position embeddings perform comparably to 2D-aware position embeddings.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Appendix D.4",
+      "notes": "An internal ablation with a small reported difference; the claim is of near-equivalence."
+    },
+    {
+      "text": "A hybrid model using convolutional features outperforms the pure Vision Transformer at small compute budgets.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 5",
+      "notes": "The paper states the advantage holds at small budgets specifically, which is the regime a reduced-scale run occupies."
+    }
+  ]
+}

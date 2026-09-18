@@ -1,0 +1,62 @@
+{
+  "paper_id": "1409.1556",
+  "title": "Very Deep Convolutional Networks for Large-Scale Image Recognition",
+  "notes": "VGG. Its depth claims are stated on ImageNet, but the underlying comparisons -- deeper is better, 3x3 stacks beat larger filters -- are architectural and can be posed on a small dataset. The absolute ILSVRC results cannot.",
+  "claims": [
+    {
+      "text": "Increasing the depth of the network from 11 to 19 weight layers reduces classification error.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 3",
+      "notes": "Reduced form: compare a shallow and a deeper small convnet on a CIFAR-10 subset. The paper notes the benefit saturates, so the direction may be weaker at small scale."
+    },
+    {
+      "text": "A stack of three 3x3 convolution layers outperforms a single 7x7 layer with the same receptive field.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Sec. 2.3",
+      "notes": "A clean architectural comparison at matched receptive field, cheap to run small."
+    },
+    {
+      "text": "Using 1x1 convolutions to add non-linearity (configuration C) performs worse than using 3x3 convolutions that also capture spatial context (configuration D).",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Table 4",
+      "notes": "The reported gap is small; three seeds at reduced scale are unlikely to resolve it."
+    },
+    {
+      "text": "Scale jittering during training improves accuracy compared to training at a single fixed scale.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 3",
+      "notes": "A data augmentation ablation, which transfers to small images."
+    },
+    {
+      "text": "The best VGG configuration reaches 7.3% top-5 test error on ILSVRC-2014.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Table 5",
+      "notes": "A headline competition number."
+    },
+    {
+      "text": "Local response normalisation does not improve performance over the same network without it.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Table 3",
+      "notes": "A claim of no effect. Confirming absence of an effect at reduced scale is inconclusive by construction."
+    },
+    {
+      "text": "An ensemble of two VGG models outperforms either model alone.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 6",
+      "notes": "Ensembling is a well-established effect that appears at any scale."
+    }
+  ]
+}

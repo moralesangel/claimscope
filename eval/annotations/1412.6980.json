@@ -1,0 +1,54 @@
+{
+  "paper_id": "1412.6980",
+  "title": "Adam: A Method for Stochastic Optimization",
+  "notes": "Included because its headline theoretical claim was later shown to be wrong: Reddi et al. (2018) found an error in the convergence proof and gave counterexamples. That is a claim about a theorem, not an experiment, so it is annotated as not testable -- a good check that the agent does not try to run experiments against mathematics. The empirical convergence comparisons are small and do reduce well.",
+  "claims": [
+    {
+      "text": "Adam converges faster than SGD with Nesterov momentum when training a logistic regression model on MNIST.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 1",
+      "notes": "A small, cheap comparison; logistic regression on MNIST runs in seconds on CPU."
+    },
+    {
+      "text": "Adam converges about as fast as AdaGrad on sparse bag-of-words features.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Fig. 1",
+      "notes": "A claim of equivalence rather than superiority; at reduced scale that reads as inconclusive."
+    },
+    {
+      "text": "Adam reaches a lower training cost than SGD with momentum, AdaGrad and RMSProp when training a multilayer neural network on MNIST.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 2",
+      "notes": "Same setting shrunk: a small MLP on a MNIST subset."
+    },
+    {
+      "text": "Adam shows only marginal improvement over SGD with momentum on convolutional networks.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Sec. 6.3",
+      "notes": "The paper itself reports the difference as marginal, so a correct reduced-scale run should not resolve it."
+    },
+    {
+      "text": "The average regret of Adam converges, giving an O(1/sqrt(T)) convergence rate for convex objectives.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Theorem 4.1, Corollary 4.2",
+      "notes": "A theoretical result, not an experiment. Reddi et al. (2018) later found the proof to be flawed. Reduced-scale experiments cannot settle a theorem either way."
+    },
+    {
+      "text": "Bias correction of the moment estimates matters most at the start of training and with small beta2 values.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Sec. 6.4",
+      "notes": "A direct ablation: the same optimiser with and without bias correction."
+    }
+  ]
+}

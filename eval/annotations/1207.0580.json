@@ -1,0 +1,60 @@
+{
+  "paper_id": "1207.0580",
+  "title": "Improving neural networks by preventing co-adaptation of feature detectors",
+  "notes": "The dropout paper. Its central claim is a regularisation effect on a small MNIST network, which is close to ideal for reduced-scale testing: the mechanism is not scale dependent and the whole experiment fits on a CPU. The speech and object-recognition results depend on datasets that are not freely available.",
+  "claims": [
+    {
+      "text": "A feedforward network trained with 50% dropout on the hidden units makes fewer test errors on MNIST than the same network trained without dropout.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 1",
+      "notes": "160 errors without dropout, about 130 with. The core claim, and small enough to run on CPU."
+    },
+    {
+      "text": "Also dropping out 20% of the input pixels reduces test error further compared to dropout on the hidden units alone.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Fig. 1",
+      "notes": "130 errors down to about 110. A difference of roughly 0.2 percentage points; at reduced scale with three seeds this is likely inside the noise."
+    },
+    {
+      "text": "Dropout reduces the gap between training and test error, which the paper attributes to less co-adaptation between feature detectors.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Sec. 1",
+      "notes": "The generalisation-gap framing of the same effect. This is the toy claim PLAN.md section 10 names."
+    },
+    {
+      "text": "A network trained with dropout reaches about 110 test errors on MNIST.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Fig. 1",
+      "notes": "A headline number."
+    },
+    {
+      "text": "Dropout lowers the frame classification error rate on the TIMIT speech benchmark relative to the same network without dropout.",
+      "claim_type": "ablation",
+      "testable": false,
+      "source_location": "Fig. 2",
+      "notes": "TIMIT is licensed and not freely downloadable, so neither arm can be run here."
+    },
+    {
+      "text": "Dropout improves error rates on CIFAR-10 relative to the same convolutional network without dropout.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Sec. 3",
+      "notes": "Same mechanism on a dataset that is freely available and small enough to subsample."
+    },
+    {
+      "text": "Dropout improves results on the ImageNet object recognition benchmark.",
+      "claim_type": "ablation",
+      "testable": false,
+      "source_location": "Sec. 4",
+      "notes": "ImageNet-scale training is far outside a small CPU budget."
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "paper_id": "1502.03167",
+  "title": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift",
+  "notes": "The convergence-speed and learning-rate claims are mechanism claims that should survive shrinking. The ImageNet numbers do not. Note that the paper's stated explanation -- internal covariate shift -- was later disputed by Santurkar et al. (2018); that is a claim about why, which reduced-scale testing cannot settle either way, so it is annotated as not testable rather than as false.",
+  "claims": [
+    {
+      "text": "A batch-normalized network reaches a given accuracy in fewer training steps than the same network without batch normalization.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 2",
+      "notes": "Convergence speed on a small convnet; the mechanism is not scale dependent."
+    },
+    {
+      "text": "Batch normalization allows training with a much higher learning rate without the network diverging.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Sec. 3.3",
+      "notes": "Directly testable: train both arms at a learning rate that diverges without batch norm."
+    },
+    {
+      "text": "Batch normalization acts as a regulariser, so dropout can be removed or reduced without losing accuracy.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Sec. 4.2.1",
+      "notes": "A claim of no difference. At reduced scale with three seeds, absence of a difference is inconclusive rather than confirmation."
+    },
+    {
+      "text": "Batch normalization achieves the same accuracy as the original Inception model with 14 times fewer training steps.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Sec. 4.2.2",
+      "notes": "A specific speedup factor on an ImageNet-scale model."
+    },
+    {
+      "text": "An ensemble of batch-normalized networks reaches 4.9% top-5 validation error on ImageNet.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Sec. 4.2.3",
+      "notes": "A headline number requiring ImageNet training."
+    },
+    {
+      "text": "The benefit of batch normalization comes from reducing internal covariate shift.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Sec. 2",
+      "notes": "A causal explanation, not an experimental comparison between two arms. Later work (Santurkar et al. 2018) disputed it. Reduced-scale testing measures whether the effect holds, not why."
+    },
+    {
+      "text": "Batch normalization makes training less sensitive to the scale of the weight initialisation.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Sec. 3.3",
+      "notes": "Testable by varying initialisation scale across both arms."
+    }
+  ]
+}
