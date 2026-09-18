@@ -1,0 +1,65 @@
+[project]
+name = "claimscope"
+version = "0.1.0"
+description = "Agent that tests ML paper claims at reduced scale"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=0.2",
+    "langchain-core>=0.3",
+    "langchain-anthropic>=0.3",
+    "langgraph-checkpoint-sqlite>=2.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "arxiv>=2.1",
+    "pymupdf>=1.24",
+    "docker>=7.1",
+    "numpy>=1.26",
+    "scipy>=1.13",
+    "typer>=0.12",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "ruff>=0.5",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+claimscope = "claimscope.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/claimscope"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+# Markdown here is documentation, not source; ruff must not reformat its code blocks.
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["arxiv.*", "fitz.*", "docker.*", "scipy.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The langsmith plugin is autoloaded via langchain and pulls in xxhash at import time.
+# We do not use it, and tracing is opt-in (PLAN.md section 3), so keep it out of the run.
+addopts = "-p no:langsmith_plugin"
+markers = [
+    "llm: test hits the real LLM API; run on demand only",
+]
