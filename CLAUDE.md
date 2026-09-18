@@ -51,12 +51,30 @@ Tres restricciones locales, con su solución ya aplicada. No hace falta volver a
 1. **`uv` no está en el PATH global.** Está en `C:\Users\angel\.local\bin`. Anteponerlo en cada
    sesión: `$env:Path = "C:\Users\angel\.local\bin;$env:Path"`.
 2. **Smart App Control está en modo enforcement** (`VerifiedAndReputablePolicyState = 1`). Bloquea
-   los shims `.exe` de `.venv\Scripts\` (`claimscope.exe`, `mypy.exe`, `pytest.exe`) y la DLL nativa
-   de `xxhash`. Por eso **siempre se invoca con `uv run python -m <modulo>`**, nunca por el nombre
-   del ejecutable. `numpy`, `scipy`, `pymupdf` y `langgraph` sí importan correctamente.
-3. **`xxhash` está bloqueado** y lo arrastra `langsmith`, que registra un plugin de pytest que lo
-   importa al arrancar. Desactivado en `pyproject.toml` con `addopts = "-p no:langsmith_plugin"`.
-   No es dependencia nuestra y las trazas son opcionales, así que no afecta al proyecto.
+   los shims `.exe` de `.venv\Scripts\` (`claimscope.exe`, `mypy.exe`, `pytest.exe`). Por eso
+   **siempre se invoca con `uv run python -m <modulo>`**, nunca por el nombre del ejecutable.
+   `numpy`, `scipy` y `pymupdf` sí importan (sus ruedas tienen reputación establecida).
+
+   SAC no admite exclusiones por carpeta: se aplica con políticas de Code Integrity de kernel y
+   solo tiene los estados On / Evaluation / Off. Las exclusiones de Defender son otro mecanismo
+   y no sirven aquí. No perder tiempo buscando una excepción por ruta.
+3. **`xxhash` está bloqueado** (su `.pyd` no está firmada; probadas las versiones 3.2.0, 3.4.1 y
+   3.5.0, todas bloqueadas). No es periférico: `langgraph/types.py` y `langgraph/pregel/_algo.py`
+   lo importan a nivel de módulo, así que **sin resolverlo LangGraph entero no importa**.
+
+   **Solución aplicada:** `vendor/xxhash_pure/` implementa XXH3-128 en Python puro y
+   `[tool.uv.sources]` redirige la dependencia ahí. Toda la superficie que usa el árbol de
+   dependencias son dos nombres (`xxh3_128`, `xxh3_128_hexdigest`), y solo para derivar IDs de
+   tarea deterministas. La implementación está validada **bit a bit contra los 12 483 vectores
+   oficiales** de xxHash, así que los digests son compatibles con una instalación normal: un
+   checkpoint escrito aquí se lee igual en otra máquina. `tests/test_xxhash_shim.py` protege esto
+   con 287 vectores muestreados que cubren todas las rutas del algoritmo.
+
+   Si alguna vez se trabaja en una máquina sin SAC, basta con quitar la entrada de
+   `[tool.uv.sources]` y la dependencia directa de `xxhash` para volver a la rueda nativa.
+
+   El plugin de pytest de `langsmith` sigue desactivado (`addopts = "-p no:langsmith_plugin"`)
+   porque no lo usamos y las trazas son opcionales.
 
 Otras notas:
 

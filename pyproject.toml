@@ -18,6 +18,8 @@ dependencies = [
     "scipy>=1.13",
     "typer>=0.12",
     "rich>=13.7",
+    # Transitive (langgraph, langsmith), pinned here so tool.uv.sources can redirect it.
+    "xxhash>=3.0",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +38,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claimscope"]
+
+# Smart App Control on the dev machine blocks the unsigned native DLL in every PyPI
+# xxhash wheel, and langgraph imports xxh3_128_hexdigest at module scope. Point the
+# dependency at a pure-Python implementation instead; it is validated bit-for-bit
+# against the 12483 official XXH3-128 vectors (see vendor/xxhash_pure/ and
+# tests/test_xxhash_shim.py), so digests stay compatible with a normal install.
+[tool.uv.sources]
+xxhash = { path = "vendor/xxhash_pure", editable = true }
 
 [tool.ruff]
 line-length = 100
