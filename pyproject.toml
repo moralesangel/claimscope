@@ -57,7 +57,9 @@ extend-exclude = ["*.md"]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.mypy]
-python_version = "3.11"
+# The interpreter here is 3.12 and numpy's bundled stubs use 3.12-only syntax,
+# so type-check against 3.12. requires-python stays at 3.11 for the package.
+python_version = "3.12"
 strict = true
 files = ["src"]
 
@@ -67,6 +69,8 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Put tests/ on sys.path so test modules can import the shared stubs module.
+pythonpath = ["tests"]
 # The langsmith plugin is autoloaded via langchain and pulls in xxhash at import time.
 # We do not use it, and tracing is opt-in (PLAN.md section 3), so keep it out of the run.
 addopts = "-p no:langsmith_plugin"

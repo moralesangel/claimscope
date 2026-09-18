@@ -88,4 +88,20 @@ Otras notas:
 
 - **Fase 0 (esqueleto): completada.** Estructura de paquetes, `pyproject.toml`, ruff, mypy, pytest,
   `.env.example` y CLI con `--help`.
-- Siguiente: fase 1 (ingesta y extracción de claims).
+- **Fase 1 (ingesta y extracción): completada.** Nodos `ingest` y `extract_claims`, grafo lineal,
+  esquemas Pydantic, cliente LLM con validación y un reintento, y `claimscope analyze <arxiv_id>`.
+- Siguiente: fase 2 (triage, plan e interrupt con checkpointer SQLite).
+
+### Notas de la fase 1
+
+- **`arxiv` 4.0.1 eliminó `Result.download_pdf`.** Solo expone `pdf_url`; la descarga se hace con
+  `requests` en `nodes/ingest.py`.
+- **Las URLs se parten a mitad en los PDFs.** PyMuPDF extrae
+  `https://github.com/\ntensorflow/tensor2tensor`, así que `find_repo_url` rejunta los saltos que
+  siguen a `/` o `-` antes de buscar. Solo esos: unir tras el punto final de la frase se traga la
+  prosa siguiente. Ambos casos tienen test de regresión con texto real de arXiv 1706.03762.
+- **`ChatAnthropic` tipa su `__init__` como `(*args, **kwargs)`**, así que mypy no valida sus
+  kwargs. Se usan los alias (`model_name`, `api_key`, `timeout`, `stop`), verificados en runtime.
+- **mypy apunta a Python 3.12**, no a 3.11, porque los stubs incluidos en numpy usan sintaxis de
+  3.12. `requires-python` del paquete sigue siendo 3.11.
+- Los tests comparten dobles en `tests/stubs.py`, con `pythonpath = ["tests"]` en el pyproject.

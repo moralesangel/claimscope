@@ -24,7 +24,12 @@ class Settings(BaseSettings):
     runs_dir: Path = Path("runs")
 
     # Triage and budget limits (PLAN.md sections 6 and 7).
+    max_claims_extracted: int = 10
+    """Upper bound on claims the extraction node returns, before triage."""
+
     max_claims: int = 2
+    """K: how many claims triage may select for execution."""
+
     budget_minutes_total: float = 60.0
     seeds_per_arm: int = 3
     max_debug_attempts: int = 3
