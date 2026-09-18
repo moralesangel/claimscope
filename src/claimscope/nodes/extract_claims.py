@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 from claimscope.config import Settings, get_settings
-from claimscope.llm import AnthropicStructuredLLM, StructuredLLM
+from claimscope.llm import ProviderStructuredLLM, StructuredLLM
 from claimscope.prompts import load_prompt
 from claimscope.schemas import Claim, ClaimList
 from claimscope.state import GraphState
@@ -38,7 +38,7 @@ def extract_claims(
 ) -> GraphState:
     """Graph node: turn the paper text into a validated list of claims."""
     settings = settings or get_settings()
-    llm = llm or AnthropicStructuredLLM(settings)
+    llm = llm or ProviderStructuredLLM(settings)
 
     text = state["paper_text"]
     if len(text) > MAX_PAPER_CHARS:

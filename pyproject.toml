@@ -20,6 +20,7 @@ dependencies = [
     "rich>=13.7",
     # Transitive (langgraph, langsmith), pinned here so tool.uv.sources can redirect it.
     "xxhash>=3.0",
+    "langchain-google-genai>=4.4.0",
 ]
 
 [project.optional-dependencies]

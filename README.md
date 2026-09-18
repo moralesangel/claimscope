@@ -19,8 +19,12 @@ Requiere Python 3.11+ y [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync --all-extras
-cp .env.example .env    # y rellena ANTHROPIC_API_KEY
+cp .env.example .env    # y rellena la clave del proveedor que uses
 ```
+
+ClaimScope funciona con Anthropic (por defecto) o con Google Gemini. Elige con
+`CLAIMSCOPE_PROVIDER=anthropic|google` en `.env` y rellena `ANTHROPIC_API_KEY` o `GEMINI_API_KEY`
+según corresponda.
 
 ## Uso
 

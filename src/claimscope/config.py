@@ -3,9 +3,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+Provider = Literal["anthropic", "google"]
+
+# Used when the provider is switched without naming a model.
+DEFAULT_MODELS: dict[Provider, str] = {
+    "anthropic": "claude-sonnet-5",
+    "google": "gemini-3.6-flash",
+}
 
 
 class Settings(BaseSettings):
@@ -19,7 +28,25 @@ class Settings(BaseSettings):
     )
 
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
-    model_name: str = "claude-sonnet-5"
+    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
+
+    provider: Provider = "anthropic"
+    """Which LLM backend to use. The plan specifies Anthropic; Google is
+    supported so the pipeline can run when no Anthropic credit is available."""
+
+    model_name: str = ""
+    """Model id. Left empty, it defaults to the provider's model."""
+
+    @model_validator(mode="after")
+    def _default_model_for_provider(self) -> Settings:
+        if not self.model_name:
+            self.model_name = DEFAULT_MODELS[self.provider]
+        return self
+
+    @property
+    def active_api_key(self) -> str | None:
+        """The API key for the selected provider."""
+        return self.anthropic_api_key if self.provider == "anthropic" else self.gemini_api_key
 
     runs_dir: Path = Path("runs")
 

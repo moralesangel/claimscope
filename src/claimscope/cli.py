@@ -31,7 +31,8 @@ def config() -> None:
     """Show the resolved configuration, with secrets redacted."""
     settings = get_settings()
     dumped = settings.model_dump()
-    dumped["anthropic_api_key"] = "set" if settings.anthropic_api_key else "unset"
+    for key_field in ("anthropic_api_key", "gemini_api_key"):
+        dumped[key_field] = "set" if dumped.get(key_field) else "unset"
     for key, value in dumped.items():
         console.print(f"{key}: {value}")
 

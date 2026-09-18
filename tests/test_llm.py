@@ -8,7 +8,7 @@ import pytest
 from pydantic import BaseModel
 
 from claimscope.config import Settings
-from claimscope.llm import AnthropicStructuredLLM
+from claimscope.llm import ProviderStructuredLLM
 
 
 class Answer(BaseModel):
@@ -36,9 +36,9 @@ class FakeModel:
         return self.runnable
 
 
-def _llm(outcomes: list[object]) -> tuple[AnthropicStructuredLLM, FakeModel]:
+def _llm(outcomes: list[object]) -> tuple[ProviderStructuredLLM, FakeModel]:
     model = FakeModel(outcomes)
-    return AnthropicStructuredLLM(Settings(anthropic_api_key="k"), model=model), model  # type: ignore[arg-type]
+    return ProviderStructuredLLM(Settings(anthropic_api_key="k"), model=model), model  # type: ignore[arg-type]
 
 
 def test_returns_a_valid_first_response() -> None:
@@ -74,7 +74,7 @@ def test_gives_up_after_two_failures(caplog: pytest.LogCaptureFixture) -> None:
 
 
 def test_requires_an_api_key() -> None:
-    llm = AnthropicStructuredLLM(Settings(anthropic_api_key=None))
+    llm = ProviderStructuredLLM(Settings(anthropic_api_key=None))
 
     with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
         llm.invoke_structured("prompt", Answer)

@@ -92,6 +92,22 @@ Otras notas:
   esquemas Pydantic, cliente LLM con validación y un reintento, y `claimscope analyze <arxiv_id>`.
 - Siguiente: fase 2 (triage, plan e interrupt con checkpointer SQLite).
 
+### Proveedores de LLM
+
+El plan fija Anthropic. Como esa cuenta no tiene saldo, `llm.py` abstrae el proveedor detrás del
+`Protocol StructuredLLM` y se elige con `CLAIMSCOPE_PROVIDER` (`anthropic` | `google`), sin tocar
+código. `CLAIMSCOPE_MODEL_NAME` vacío toma el modelo por defecto del proveedor.
+
+- **La fase 1 se validó con `gemini-3.6-flash`**, no con Claude. Al volver a Anthropic hay que
+  revalidar: los modelos difieren en cuántos claims extraen y en su fidelidad.
+- **Los modelos `gemini-2.5-*` están retirados** para cuentas nuevas; la serie actual es 3.x.
+- **`gemini-3.1-pro-preview` da 429 con `limit: 0`** en el tier gratuito: no es congestión, es que
+  no está disponible. Solo `flash` funciona con esta clave.
+- La clave de Gemini del usuario tiene prefijo `AQ.` (no el clásico `AIza`) y va en la cabecera
+  `x-goog-api-key`.
+- `_is_transient()` distingue fallos reintentables (503, 429 por congestión) de permanentes
+  (`limit: 0`, saldo agotado, auth). Reintentar un `limit: 0` no sirve de nada.
+
 ### Notas de la fase 1
 
 - **`arxiv` 4.0.1 eliminó `Result.download_pdf`.** Solo expone `pdf_url`; la descarga se hace con
@@ -105,3 +121,7 @@ Otras notas:
 - **mypy apunta a Python 3.12**, no a 3.11, porque los stubs incluidos en numpy usan sintaxis de
   3.12. `requires-python` del paquete sigue siendo 3.11.
 - Los tests comparten dobles en `tests/stubs.py`, con `pythonpath = ["tests"]` en el pyproject.
+- **Los tests están aislados del entorno.** Una fixture `autouse` en `conftest.py` borra todas las
+  variables que lee `Settings` y hace `chdir` a un directorio temporal. Sin eso, `Settings` carga
+  el `.env` real del desarrollador y la suite solo pasa en su máquina. Al añadir un campo nuevo a
+  `Settings`, añade su variable a `_SETTINGS_ENV_VARS`.
