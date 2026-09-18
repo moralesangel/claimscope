@@ -63,6 +63,8 @@ class TestIsTransient:
         [
             # A zero quota is a plan limit; waiting never clears it.
             "429 RESOURCE_EXHAUSTED ... limit: 0, model: gemini-3.1-pro",
+            # A daily allowance does not come back within a backoff either.
+            "429 quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier",
             "Your credit balance is too low to access the Anthropic API",
             "401 authentication_error: invalid x-api-key",
             "404 model not found",
@@ -70,6 +72,10 @@ class TestIsTransient:
     )
     def test_rejects_permanent_failures(self, message: str) -> None:
         assert not _is_transient(message)
+
+    def test_a_per_minute_limit_is_still_transient(self) -> None:
+        # Unlike a daily cap, this clears while we wait.
+        assert _is_transient("429 quotaId: GenerateRequestsPerMinutePerProjectPerModel-FreeTier")
 
 
 def test_retries_a_503_then_succeeds() -> None:

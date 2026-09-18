@@ -90,7 +90,25 @@ Otras notas:
   `.env.example` y CLI con `--help`.
 - **Fase 1 (ingesta y extracción): completada.** Nodos `ingest` y `extract_claims`, grafo lineal,
   esquemas Pydantic, cliente LLM con validación y un reintento, y `claimscope analyze <arxiv_id>`.
-- Siguiente: fase 2 (triage, plan e interrupt con checkpointer SQLite).
+- **Fase 2 (triage, plan e interrupt): completada.** Nodos `triage`, `design_plan` y `review` con
+  `interrupt`, checkpointer SQLite, y los comandos `resume` y `threads`.
+- Siguiente: fase 3 (sandbox Docker, `codegen` from_scratch, `execute` con dry run y bucle `debug`).
+
+### Notas de la fase 2
+
+- **Al reanudar, el nodo se re-ejecuta desde el principio.** Todo lo anterior a `interrupt()` corre
+  dos veces, así que esa parte no debe tener efectos secundarios y la decisión se aplica solo
+  después. Está documentado en el docstring de `nodes/review.py`.
+- **Los esquemas deben registrarse en `session._ALLOWED_MODULES`.** LangGraph avisa al
+  deserializar tipos no registrados y los bloqueará en una versión futura, lo que dejaría las
+  ejecuciones interrumpidas sin poder reanudarse. `tests/test_session.py` falla si añades un
+  esquema y olvidas registrarlo; verificado con `LANGGRAPH_STRICT_MSGPACK=true`.
+- **`max_retries=0` en ambos proveedores.** Sus SDKs reintentan por su cuenta (~40 s en un error de
+  cuota diaria que nunca se resolverá) y ocultan los intentos de nuestro logging. `_is_transient()`
+  decide mejor: distingue congestión de cuota agotada.
+- **El tier gratuito de Gemini da 20 peticiones/día** por modelo (`GenerateRequestsPerDay...`). Se
+  agota rápido probando; se repone al día siguiente.
+- La regla "`absolute` nunca es verificable" se aplica en código, no se confía al modelo.
 
 ### Proveedores de LLM
 

@@ -7,7 +7,13 @@ from pathlib import Path
 import pytest
 
 from claimscope.config import Settings
-from claimscope.schemas import Claim, ClaimList
+from claimscope.schemas import (
+    Claim,
+    ClaimList,
+    ReductionPlan,
+    TriageDecision,
+    TriageResult,
+)
 from stubs import StubLLM
 
 # Every environment variable Settings reads. Cleared for every test so results
@@ -77,3 +83,47 @@ def sample_claims() -> list[Claim]:
 @pytest.fixture
 def stub_llm(sample_claims: list[Claim]) -> StubLLM:
     return StubLLM([ClaimList(claims=sample_claims)])
+
+
+@pytest.fixture
+def sample_triage() -> TriageResult:
+    """Triage that accepts the comparative claim and rejects the absolute one."""
+    return TriageResult(
+        decisions=[
+            TriageDecision(
+                claim_id="residual_beats_plain",
+                testable=True,
+                reason="A depth-matched comparison on a small image dataset shrinks cleanly.",
+                priority=1,
+            ),
+            TriageDecision(
+                claim_id="imagenet_top1",
+                testable=False,
+                reason="Absolute ImageNet numbers cannot be reproduced at reduced scale.",
+                priority=0,
+            ),
+        ]
+    )
+
+
+@pytest.fixture
+def sample_plan() -> ReductionPlan:
+    return ReductionPlan(
+        claim_id="residual_beats_plain",
+        original_setup="ResNet-34 vs plain-34 on ImageNet.",
+        reduced_setup="ResNet-8 vs plain-8 on a 5k-image CIFAR-10 subset, 2 epochs.",
+        changes=["ImageNet -> CIFAR-10 subset -- the degradation effect is not dataset specific."],
+        preserved=["The residual connections themselves, which the claim is about."],
+        why_claim_should_transfer="Plain nets degrade with depth even at small scale.",
+        seeds=3,
+        estimated_minutes=8.0,
+        code_source="from_scratch",
+    )
+
+
+@pytest.fixture
+def planning_llm(
+    sample_claims: list[Claim], sample_triage: TriageResult, sample_plan: ReductionPlan
+) -> StubLLM:
+    """Canned responses for a full extract -> triage -> plan run."""
+    return StubLLM([ClaimList(claims=sample_claims), sample_triage, sample_plan])

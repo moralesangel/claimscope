@@ -22,6 +22,8 @@ class GraphState(TypedDict, total=False):
     selected_claim_ids: list[str]
     plans: dict[str, ReductionPlan]
     approved_plan_ids: list[str]
+    plan_feedback: dict[str, str]
+    """Reviewer feedback per claim, fed back into design_plan on a rejection."""
 
     workspace_dir: str
     run_results: dict[str, list[RunResult]]

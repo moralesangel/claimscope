@@ -17,10 +17,15 @@ runner = CliRunner()
             "Error code: 400 - your credit balance is too low to access the Anthropic API",
             "Add credits",
         ),
-        ("Error code: 401 - authentication_error: bad key", "ANTHROPIC_API_KEY"),
-        ("invalid x-api-key", "ANTHROPIC_API_KEY"),
+        ("Error code: 401 - authentication_error: bad key", "API key"),
+        ("invalid x-api-key", "API key"),
         ("ANTHROPIC_API_KEY is not set. Copy .env.example", "Copy .env.example"),
+        ("GEMINI_API_KEY is not set. Copy .env.example", "Copy .env.example"),
         ("Error code: 429 - rate_limit_error", "Rate limited"),
+        (
+            "429 RESOURCE_EXHAUSTED quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier",
+            "Daily request quota",
+        ),
     ],
 )
 def test_maps_known_failures_to_a_hint(

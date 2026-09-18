@@ -10,8 +10,9 @@ refuta el paper, y el informe siempre lo indica.
 
 ## Estado
 
-Fase 1 completada: ingesta desde arXiv y extracción de afirmaciones. El plan de implementación está
-en [PLAN.md](PLAN.md) y las reglas de trabajo en [CLAUDE.md](CLAUDE.md).
+Fase 2 completada: ingesta, extracción de afirmaciones, triage, diseño del plan reducido y
+aprobación humana con posibilidad de reanudar. El plan de implementación está en [PLAN.md](PLAN.md)
+y las reglas de trabajo en [CLAUDE.md](CLAUDE.md).
 
 ## Instalación
 
@@ -33,12 +34,21 @@ uv run python -m claimscope.cli --help
 uv run python -m claimscope.cli version
 uv run python -m claimscope.cli config
 
-# Descargar un paper de arXiv y extraer sus afirmaciones.
+# Analizar un paper: extraer afirmaciones, triarlas y diseñar el experimento.
 uv run python -m claimscope.cli analyze 1706.03762 --verbose
+
+# Reanudar una ejecución que quedó esperando aprobación.
+uv run python -m claimscope.cli threads
+uv run python -m claimscope.cli resume 1706.03762-ce8eced0
 ```
 
-`analyze` deja el PDF, el texto y `claims.json` en `runs/<paper_id>/`, y reutiliza esa caché en
-ejecuciones posteriores. Requiere `ANTHROPIC_API_KEY` en `.env`.
+`analyze` deja el PDF, el texto, `claims.json`, `triage.json` y `plans.json` en `runs/<paper_id>/`,
+y reutiliza esa caché en ejecuciones posteriores.
+
+Antes de ejecutar nada, el agente se detiene y te muestra cada plan de reducción para que lo
+apruebes o lo rechaces con comentarios; un rechazo vuelve al diseño con tu feedback. Si cierras el
+proceso en ese punto, el estado queda en `runs/checkpoints.sqlite` y `resume <thread_id>` continúa
+donde lo dejaste.
 
 En máquinas con Smart App Control activo, los shims `.exe` del entorno virtual están bloqueados;
 por eso los comandos se invocan como `python -m`. Ver [CLAUDE.md](CLAUDE.md) para el detalle.

@@ -47,8 +47,14 @@ _TRANSIENT_MARKERS = (
     "500",
 )
 
-# A zero quota is a plan limit, not congestion: retrying never helps.
-_PERMANENT_MARKERS = ("limit: 0", "credit balance is too low")
+# Conditions a short backoff will never clear: a zero quota, an exhausted daily
+# allowance, or no credit at all.
+_PERMANENT_MARKERS = (
+    "limit: 0",
+    "credit balance is too low",
+    "generaterequestsperdayperprojectpermodel",
+    "perdayperproject",
+)
 
 
 def _is_transient(message: str) -> bool:
@@ -94,14 +100,19 @@ class ProviderStructuredLLM:
                 api_key=SecretStr(api_key),
                 timeout=120.0,
                 stop=None,
+                max_retries=0,  # see the Google branch: our backoff owns this
             )
         else:
             from langchain_google_genai import ChatGoogleGenerativeAI
 
+            # max_retries=0 because _invoke_with_backoff decides what to retry.
+            # The SDK's own retry loop burns ~40s on a daily quota error that
+            # will never clear, and hides the attempts from our logging.
             self._model = ChatGoogleGenerativeAI(
                 model=self._settings.model_name,
                 google_api_key=SecretStr(api_key),
                 timeout=120.0,
+                max_retries=0,
             )
         return self._model
 

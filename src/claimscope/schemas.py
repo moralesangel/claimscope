@@ -52,6 +52,32 @@ class ClaimList(BaseModel):
     claims: list[Claim]
 
 
+class TriageDecision(BaseModel):
+    """Whether one claim is worth testing at reduced scale."""
+
+    claim_id: str
+    testable: bool
+    reason: str = Field(description="One sentence justifying the decision.")
+    priority: int = Field(
+        default=0,
+        ge=0,
+        description="1 is the best candidate; 0 means untestable.",
+    )
+
+    @field_validator("reason")
+    @classmethod
+    def _must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("must not be blank")
+        return value.strip()
+
+
+class TriageResult(BaseModel):
+    """Wrapper so the LLM returns an object rather than a bare array."""
+
+    decisions: list[TriageDecision]
+
+
 class ReductionPlan(BaseModel):
     """How a claim will be tested at reduced scale (PLAN.md section 2 invariants)."""
 
