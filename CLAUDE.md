@@ -120,8 +120,27 @@ Otras notas:
   vigilan su equilibrio.
 - **Fase 7 (pulido): completada.** Trazas opcionales (LangSmith y Langfuse), README reescrito con
   diagrama del grafo, limitaciones y posicionamiento frente a PaperBench y CORE-Bench.
-- Pendiente, y bloqueado por el entorno, no por el código: la aceptación de las fases 3 y 5
-  (ejecución real con Docker) y la validación de triage/planes con un LLM real.
+- **Sandbox de subproceso + notebook de Colab: añadidos.** `CLAIMSCOPE_SANDBOX_BACKEND=subprocess`
+  permite ejecutar donde no hay Docker. **El pipeline ya se ha ejecutado de punta a punta**: un
+  experimento real corre, produce métricas y llega a veredicto (`tests/test_end_to_end.py`).
+- Pendiente, y bloqueado por el entorno, no por el código: el sandbox Docker nunca se ha ejecutado,
+  y la validación de triage/planes con un LLM real.
+
+### Notas del backend de subproceso
+
+- **No es contención, y no hay que presentarlo como tal.** Bloquea red, limita recursos y sanea el
+  entorno, pero el código que corre en ese proceso puede deshacerlo desde dentro. Es opt-in, avisa
+  al preparar, y marca `unconfined_execution` para que el informe lo diga al lector.
+- **El bloqueo de red se inyecta vía `sitecustomize.py`**, que Python importa al arrancar. Va en un
+  directorio hermano al workspace, no dentro, para que `run.py` no lo importe por accidente.
+- Se parchean `socket.connect`, `create_connection`, `getaddrinfo` y `urllib`, más las variables
+  `HF_HUB_OFFLINE` y `TRANSFORMERS_OFFLINE` como segunda barrera.
+- Los límites de `resource` son solo POSIX: en Windows no aplican y el test correspondiente se salta.
+  En Colab (Linux) sí funcionan.
+- `prepare()` instala en el entorno actual, no en una imagen. Es un efecto secundario real, y otra
+  razón para que este backend sea opt-in.
+- El notebook `notebooks/claimscope_colab.ipynb` verifica el bloqueo de red **antes** de gastar
+  llamadas al modelo.
 
 ### Notas de la fase 7
 

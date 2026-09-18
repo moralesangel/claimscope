@@ -9,7 +9,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from claimscope.config import Settings
 
 
 class SandboxError(RuntimeError):
@@ -89,3 +92,29 @@ class Runner(Protocol):
     def available(self) -> bool:
         """Whether this backend can run right now."""
         ...
+
+
+def build_runner(settings: Settings, client: Any | None = None) -> Runner:
+    """The sandbox for this configuration.
+
+    Docker is the default and the only backend that truly contains what it runs.
+    The subprocess backend is for environments without Docker, such as Colab,
+    and has to be asked for explicitly.
+    """
+    if settings.sandbox_backend == "subprocess":
+        from claimscope.sandbox.subprocess_runner import SubprocessRunner
+
+        return SubprocessRunner(settings)
+
+    from claimscope.sandbox.docker_runner import DockerCPURunner
+
+    return DockerCPURunner(settings, client)
+
+
+def is_contained(settings: Settings) -> bool:
+    """Whether the configured sandbox actually contains what it runs.
+
+    The report says so when it does not, since a result produced by unconfined
+    execution carries a caveat the reader deserves to see.
+    """
+    return settings.sandbox_backend == "docker"

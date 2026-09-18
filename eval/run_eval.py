@@ -69,7 +69,7 @@ class _CountingLLM:
 def _sandbox_available(settings: Settings) -> bool:
     """Whether experiments can actually be run here."""
     try:
-        from claimscope.sandbox.docker_runner import build_runner
+        from claimscope.sandbox.runner import build_runner
 
         return build_runner(settings).available()
     except Exception:  # a missing docker package is the same as no sandbox

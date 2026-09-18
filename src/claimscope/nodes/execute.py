@@ -20,6 +20,7 @@ from claimscope.sandbox.runner import (
     ImageSpec,
     Runner,
     SandboxError,
+    is_contained,
 )
 from claimscope.schemas import Claim, ReductionPlan, RunResult
 from claimscope.state import GraphState
@@ -182,7 +183,7 @@ def execute(
     """Graph node: calibrate, budget-check, then run each approved study."""
     settings = settings or get_settings()
     if runner is None:
-        from claimscope.sandbox.docker_runner import build_runner
+        from claimscope.sandbox.runner import build_runner
 
         runner = build_runner(settings)
 
@@ -262,4 +263,6 @@ def execute(
         "over_budget_claim_ids": over_budget,
         "budget_minutes_used": used,
         "errors": errors,
+        # Recorded so the report can warn the reader, not just the operator.
+        "unconfined_execution": not is_contained(settings),
     }

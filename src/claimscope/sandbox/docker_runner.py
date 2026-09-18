@@ -196,11 +196,3 @@ def _safe_remove(container: Any) -> None:
         container.remove(force=True)
     except Exception:  # cleanup is best effort
         logger.debug("could not remove container", exc_info=True)
-
-
-def build_runner(settings: Settings, client: Any | None = None) -> DockerCPURunner:
-    """The runner for this configuration.
-
-    Only a CPU backend exists today; a GPU runner would be selected here.
-    """
-    return DockerCPURunner(settings, client)

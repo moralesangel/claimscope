@@ -46,6 +46,9 @@ class GraphState(TypedDict, total=False):
     over_budget_claim_ids: list[str]
     """Claims whose measured cost exceeded the remaining budget."""
 
+    unconfined_execution: bool
+    """True when experiments ran outside a container, which the report discloses."""
+
     budget_minutes_total: float
     budget_minutes_used: float
 

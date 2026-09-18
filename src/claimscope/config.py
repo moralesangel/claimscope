@@ -65,6 +65,15 @@ class Settings(BaseSettings):
     """Steps a full run is assumed to take, used to extrapolate the dry run."""
 
     # Sandbox limits.
+    sandbox_backend: Literal["docker", "subprocess"] = "docker"
+    """Which sandbox runs generated code.
+
+    ``docker`` is the only one that actually contains it. ``subprocess`` exists
+    for environments without Docker, such as Google Colab; it blocks network
+    access and caps resources but cannot contain hostile code, so it must be
+    chosen deliberately.
+    """
+
     docker_image: str = "claimscope-cpu:latest"
     sandbox_cpus: float = 2.0
     sandbox_memory_mb: int = 4096

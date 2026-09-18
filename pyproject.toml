@@ -55,8 +55,10 @@ xxhash = { path = "vendor/xxhash_pure", editable = true }
 [tool.ruff]
 line-length = 100
 src = ["src", "tests"]
-# Markdown here is documentation, not source; ruff must not reformat its code blocks.
-extend-exclude = ["*.md"]
+# Markdown here is documentation, not source; ruff must not reformat its code
+# blocks. Notebook cells legitimately import partway through, which is what a
+# narrative notebook looks like.
+extend-exclude = ["*.md", "*.ipynb"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]

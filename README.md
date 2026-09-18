@@ -96,13 +96,30 @@ apoyo, no como criterio.
 Con tres semillas la potencia estadística es baja: `inconclusive` casi siempre significa "no hay
 evidencia suficiente", no "no hay efecto".
 
+## Probarlo sin instalar nada
+
+[`notebooks/claimscope_colab.ipynb`](notebooks/claimscope_colab.ipynb) ejecuta el pipeline completo
+en Google Colab: descarga un paper, extrae sus afirmaciones, diseña el experimento, **lo ejecuta de
+verdad** y emite un veredicto. Solo necesitas una clave de Gemini, que tiene nivel gratuito.
+
+Colab no tiene Docker, así que el notebook usa un sandbox más débil (ver abajo). El notebook empieza
+verificando que el bloqueo de red funciona antes de gastar llamadas al modelo.
+
 ## Seguridad
 
-El código que genera el modelo **nunca se ejecuta fuera del sandbox**. Cada experimento corre en un
-contenedor Docker sin red, con usuario no root, raíz de solo lectura, todas las capabilities
-eliminadas, `no-new-privileges` y topes de CPU, memoria, procesos y tiempo. Lo único montado es el
-directorio de trabajo de esa afirmación. Las dependencias se instalan al construir la imagen, que es
-el único paso con acceso a red.
+El código que genera el modelo **nunca se ejecuta fuera de un sandbox**. Hay dos, y la diferencia
+importa:
+
+**`docker` (por defecto).** Contenedor sin red, usuario no root, raíz de solo lectura, todas las
+capabilities eliminadas, `no-new-privileges` y topes de CPU, memoria, procesos y tiempo. Lo único
+montado es el directorio de trabajo de esa afirmación. Las dependencias se instalan al construir la
+imagen, el único paso con acceso a red. **Es el único backend que contiene de verdad lo que ejecuta.**
+
+**`subprocess`** (`CLAIMSCOPE_SANDBOX_BACKEND=subprocess`). Para entornos sin Docker, como Colab.
+Ejecuta en un proceso aparte con las llamadas de red bloqueadas, memoria y CPU limitadas y el
+entorno saneado de credenciales. **Bloquea descargas accidentales pero no contiene código hostil**:
+lo que corre en ese proceso puede deshacer las restricciones desde dentro. Hay que pedirlo
+explícitamente, y todo informe producido así lo dice.
 
 ## Evaluación del agente
 
@@ -175,15 +192,19 @@ experimento más barato.
 
 ## Estado del proyecto
 
-El pipeline está completo. Dos cosas **no** se han verificado nunca de extremo a extremo, y conviene
-saberlo antes de confiar en un resultado:
+El pipeline está completo y **se ha ejecutado de punta a punta**: un experimento real corre en el
+sandbox de subproceso, produce métricas y llega a un veredicto con su intervalo de confianza.
+`tests/test_end_to_end.py` lo comprueba en cada ejecución de la suite.
 
-- **La ejecución real de experimentos** está implementada y testeada contra un runner falso, pero
-  nunca se ha ejecutado contra Docker, porque la máquina de desarrollo no lo tiene instalado.
-  `tests/test_sandbox_integration.py` contiene las pruebas de contención reales y se saltan solas
-  hasta que haya un demonio disponible.
+Dos cosas siguen sin verificarse, y conviene saberlo antes de confiar en un resultado:
+
+- **El sandbox Docker nunca se ha ejecutado**, porque la máquina de desarrollo no lo tiene instalado.
+  Sus propiedades de contención están testeadas contra un cliente falso, y
+  `tests/test_sandbox_integration.py` contiene las pruebas reales, que se saltan solas hasta que haya
+  un demonio disponible.
 - **La calidad del triage y de los planes con un LLM real** solo se ha observado en la extracción de
-  afirmaciones. El resto está validado con modelos simulados.
+  afirmaciones. El resto está validado con modelos simulados, así que el pipeline está probado pero
+  el juicio del agente no.
 
 Con Docker disponible: `uv run python -m pytest -m docker` y luego un `analyze` real.
 

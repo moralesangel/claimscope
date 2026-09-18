@@ -174,6 +174,18 @@ def render_report(state: GraphState) -> str:
             ]
         parts.append("")
 
+    if state.get("unconfined_execution"):
+        parts += [
+            "## How these experiments were run",
+            "",
+            "> **These results were produced without container isolation.** The experiments ran in "
+            "a restricted subprocess, with network access blocked and resources capped, but not "
+            "inside a sandbox that can contain what it runs. Treat the results as a demonstration "
+            "of the pipeline rather than as a trustworthy measurement, and re-run under Docker "
+            "before relying on them.",
+            "",
+        ]
+
     if errors := state.get("errors"):
         parts += ["## Problems encountered", ""]
         parts += [f"- {error}" for error in errors]
