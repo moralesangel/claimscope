@@ -103,8 +103,27 @@ Otras notas:
 
   Docker Desktop necesita WSL2, que a su vez requiere administrador y reiniciar. Ninguna de las
   dos cosas se puede hacer desde esta sesión.
-- Siguiente: completar la aceptación de la fase 3 con Docker, o fase 4 (`stats.py`, `analyze`,
-  `report`), que es matemática pura y no necesita sandbox.
+- **Fase 4 (análisis e informe): completada.** `stats.py` (bootstrap sobre semillas, Welch de
+  apoyo, regla de veredicto), nodos `analyze` y `report`. Aceptación cumplida: informe Markdown
+  completo para el claim de juguete y tests de la regla de veredicto con datos sintéticos.
+- Siguiente: completar la aceptación de la fase 3 con Docker, o fase 5 (modo `official_repo`).
+
+### Notas de la fase 4
+
+- **El signo del efecto depende de la métrica.** `metric_direction()` detecta métricas donde menos
+  es mejor (loss, error, perplexity, RMSE, FID...) por palabras completas, no por subcadenas: si no,
+  "lossless" se clasificaría como loss. Equivocarse aquí invierte el veredicto en silencio.
+- **El intervalo se firma antes de aplicar la regla**, de modo que positivo siempre significa "en la
+  dirección que predice el paper". Así la regla de la sección 8 es una sola comparación con cero.
+- **Un intervalo que toca el cero es `inconclusive`**, no consistente. Un límite exactamente en cero
+  no es evidencia de dirección.
+- **Todos los caminos del grafo llegan a `analyze`**, incluido "triage no seleccionó nada". Si no,
+  un paper sin claims verificables no generaría informe y el silencio se leería como éxito.
+- **`build_graph` aplica el serializador a cualquier checkpointer**, no solo al de SQLite. Al probar
+  con `InMemorySaver` reaparecían los avisos de tipos no registrados, que en una versión futura
+  serán errores.
+- Los brazos deben estar emparejados: `analyze` rechaza comparar 3 semillas contra 2 y lo reporta
+  como `inconclusive` con el motivo.
 
 ### Notas de la fase 3
 

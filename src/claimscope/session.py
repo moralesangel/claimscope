@@ -6,9 +6,10 @@ import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from langgraph.checkpoint.sqlite import SqliteSaver
 
@@ -38,9 +39,20 @@ _ALLOWED_MODULES: tuple[tuple[str, str], ...] = (
 )
 
 
-def _serializer() -> JsonPlusSerializer:
+def project_serializer() -> JsonPlusSerializer:
     """A serializer that accepts this project's schemas and nothing else new."""
     return JsonPlusSerializer(allowed_msgpack_modules=_ALLOWED_MODULES)
+
+
+def use_project_serializer(saver: BaseCheckpointSaver[Any]) -> BaseCheckpointSaver[Any]:
+    """Point any checkpointer at our serializer.
+
+    Needed for every saver, not just the SQLite one: an in-memory checkpointer
+    used in tests hits the same unregistered-type warning, and would hit the
+    same hard failure once LangGraph starts refusing them.
+    """
+    saver.serde = project_serializer()
+    return saver
 
 
 def checkpoint_path(settings: Settings) -> Path:
@@ -64,7 +76,7 @@ def checkpointer(settings: Settings) -> Iterator[SqliteSaver]:
     path = checkpoint_path(settings)
     path.parent.mkdir(parents=True, exist_ok=True)
     with SqliteSaver.from_conn_string(str(path)) as saver:
-        saver.serde = _serializer()
+        use_project_serializer(saver)
         yield saver
 
 

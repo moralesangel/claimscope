@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import inspect
 
+from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 from pydantic import BaseModel
 
 from claimscope import schemas
@@ -57,6 +58,25 @@ def test_allowlist_has_no_stale_entries() -> None:
     assert registered <= defined, (
         f"allowlist names no longer defined: {sorted(registered - defined)}"
     )
+
+
+def test_build_graph_applies_the_serializer_to_any_checkpointer(settings: Settings) -> None:
+    """A caller's own checkpointer must not bypass the allowlist.
+
+    Otherwise an InMemorySaver silently accepts types the SQLite one refuses,
+    and the mismatch only shows up in production.
+    """
+    from langgraph.checkpoint.memory import InMemorySaver
+
+    from claimscope.graph import build_graph
+
+    saver = InMemorySaver()
+    default_serde = saver.serde
+
+    build_graph(settings, checkpointer=saver)
+
+    assert saver.serde is not default_serde
+    assert isinstance(saver.serde, JsonPlusSerializer)
 
 
 def test_checkpoint_lives_under_the_runs_directory(settings: Settings) -> None:
