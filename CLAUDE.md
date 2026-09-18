@@ -106,7 +106,29 @@ Otras notas:
 - **Fase 4 (análisis e informe): completada.** `stats.py` (bootstrap sobre semillas, Welch de
   apoyo, regla de veredicto), nodos `analyze` y `report`. Aceptación cumplida: informe Markdown
   completo para el claim de juguete y tests de la regla de veredicto con datos sintéticos.
-- Siguiente: completar la aceptación de la fase 3 con Docker, o fase 5 (modo `official_repo`).
+- **Fase 5 (modo repo oficial): implementada, ACEPTACIÓN PENDIENTE.** `repo.py` clona e inspecciona
+  el repositorio del paper, y `codegen` genera un adaptador que lo ejecuta a escala reducida.
+  La aceptación ("un paper real con código oficial llega a veredicto") **necesita Docker**, igual
+  que la fase 3. La inspección sí está verificada contra repos reales (pytorch-cifar, nanoGPT).
+- Siguiente: completar las aceptaciones de las fases 3 y 5 con Docker, o fase 6 (harness de
+  evaluación), que no necesita sandbox.
+
+### Notas de la fase 5
+
+- **No hay un formato común de configuración.** `pytorch-cifar` solo expone `--lr` con el resto
+  hardcodeado; nanoGPT usa ficheros Python en `config/`. Por eso `repo.py` no intenta *entender* el
+  repo: reúne evidencia (entrypoints, flags, configs, imports) y el prompt pide al modelo que
+  escriba el adaptador contra esa evidencia.
+- **Los imports se infieren del AST, no del `requirements.txt`.** Muchos repos de investigación no
+  declaran dependencias: `pytorch-cifar` no tiene requirements y necesita torch. Sin
+  `infer_imports()` la imagen del sandbox no tendría torch y **toda ejecución fallaría en el primer
+  import**. Se filtran la stdlib (vía `sys.stdlib_module_names`) y los módulos del propio repo.
+- **`execute` llama a `runner.prepare()`** antes de nada. Era un hueco de la fase 3: la imagen no se
+  construía nunca. Las dependencias se instalan ahí, que es el único paso con red.
+- **Un repo que no se puede clonar no cuesta el claim**: se cae a `from_scratch` y se registra el
+  motivo en `errors`.
+- El commit del repo se guarda en `repo_commits` y aparece en el informe. Sin él, el resultado no
+  es reproducible.
 
 ### Notas de la fase 4
 

@@ -149,6 +149,9 @@ def render_report(state: GraphState) -> str:
             ]
             if verdict.notes:
                 parts += [verdict.notes, ""]
+            if commit := state.get("repo_commits", {}).get(claim.id):
+                # Without the commit the run is not reproducible.
+                parts += [f"Ran against the official repository at commit `{commit}`.", ""]
             if plan := plans.get(claim.id):
                 parts += ["#### Reduction plan", "", _plan_section(plan), ""]
             if results := run_results.get(claim.id):

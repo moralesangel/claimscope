@@ -29,6 +29,12 @@ class GraphState(TypedDict, total=False):
     workspace_dirs: dict[str, str]
     """Per-claim sandbox workspace; each is the only directory mounted for it."""
 
+    repo_commits: dict[str, str]
+    """Commit of the official repo used per claim, so a run can be reproduced."""
+
+    extra_packages: list[str]
+    """Packages an official repo needs, added to the sandbox image."""
+
     run_results: dict[str, list[RunResult]]
     execution_failures: dict[str, ExecutionFailure]
     """Claims whose last run failed, awaiting the debug node."""

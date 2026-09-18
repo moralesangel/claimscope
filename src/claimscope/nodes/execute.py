@@ -12,12 +12,14 @@ import logging
 from pathlib import Path
 
 from claimscope.config import Settings, get_settings
-from claimscope.nodes.codegen import RESULT_FILE, arms_for
+from claimscope.nodes.codegen import REPO_DIR, RESULT_FILE, SANDBOX_PACKAGES, arms_for
 from claimscope.sandbox.runner import (
     ExecutionFailure,
     ExecutionRequest,
     ExecutionResult,
+    ImageSpec,
     Runner,
+    SandboxError,
 )
 from claimscope.schemas import Claim, ReductionPlan, RunResult
 from claimscope.state import GraphState
@@ -28,6 +30,33 @@ DRY_RUN_STEPS = 20
 """Steps used to calibrate timing. Short enough to be cheap, long enough to measure."""
 
 DRY_RUN_TIMEOUT_S = 300
+
+
+def sandbox_packages(workspace_dirs: dict[str, str]) -> set[str]:
+    """Packages the image needs: our defaults plus whatever the repos declare.
+
+    Repository requirements are advisory. A paper's full dependency stack often
+    cannot be installed on CPU in a small image, so anything that fails to
+    resolve is dropped rather than failing the build; the codegen prompt tells
+    the model to work with what is actually available.
+    """
+    packages = set(SANDBOX_PACKAGES)
+    for workspace_dir in workspace_dirs.values():
+        requirements = Path(workspace_dir) / REPO_DIR / "requirements.txt"
+        if requirements.exists():
+            packages |= _parse_requirements(requirements)
+    return packages
+
+
+def _parse_requirements(path: Path) -> set[str]:
+    """Package names from a requirements file, ignoring options and comments."""
+    names: set[str] = set()
+    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if not line or line.startswith("-"):
+            continue
+        names.add(line)
+    return names
 
 
 def _read_metric(workspace: Path) -> float:
@@ -166,6 +195,16 @@ def execute(
     over_budget = list(state.get("over_budget_claim_ids", []))
     errors = list(state.get("errors", []))
     used = state.get("budget_minutes_used", 0.0)
+
+    # Dependencies are installed while building the image, which is the only
+    # step allowed network access; the experiments themselves then run offline.
+    try:
+        packages = sandbox_packages(workspaces) | set(state.get("extra_packages", []))
+        runner.prepare(ImageSpec(packages=sorted(packages)))
+    except SandboxError as exc:
+        message = f"could not prepare the sandbox: {exc}"
+        logger.error(message)
+        return {"errors": [*errors, message]}
 
     for claim_id in state.get("approved_plan_ids", []):
         if claim_id in run_results:

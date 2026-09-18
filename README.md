@@ -14,9 +14,12 @@ Pipeline completo implementado: ingesta, extracción de afirmaciones, triage, di
 reducido, aprobación humana, generación de código, ejecución en sandbox, análisis estadístico e
 informe.
 
-Fase 3 (sandbox Docker y ejecución) está implementada pero **sin verificar de punta a punta**,
-porque la máquina de desarrollo no tiene Docker instalado. Requiere Docker Desktop para ejecutar
-experimentos de verdad.
+Cuando el paper publica código oficial, ClaimScope lo clona y genera un adaptador que lo ejecuta a
+escala reducida, en lugar de reimplementar el método.
+
+Las fases que ejecutan experimentos (3 y 5) están implementadas pero **sin verificar de punta a
+punta**, porque la máquina de desarrollo no tiene Docker instalado. Requiere Docker Desktop para
+ejecutar experimentos de verdad.
 
 El plan de implementación está en [PLAN.md](PLAN.md) y las reglas de trabajo en
 [CLAUDE.md](CLAUDE.md).
