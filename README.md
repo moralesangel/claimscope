@@ -93,6 +93,19 @@ precisamente lo que este método no puede distinguir. Con 3 semillas la potencia
 baja, así que `inconclusive` casi siempre significa "no hay evidencia suficiente", no "no hay
 efecto". Cada informe lo dice explícitamente.
 
+## Evaluación del agente
+
+`eval/` mide la calidad del propio agente contra papers anotados a mano en `eval/annotations/`.
+
+```bash
+uv run python -m eval.run_eval --output runs/eval.json
+uv run python -m eval.run_eval --paper 1512.03385
+```
+
+Mide precisión y recall de extracción, accuracy de clasificación, coste en llamadas y tiempo. Las
+métricas de ejecución y de veredicto requieren Docker; sin él la tabla muestra `—` en lugar de
+`0.00`, porque un cero afirmaría que el agente falló cuando lo cierto es que no se midió.
+
 ## Seguridad
 
 El código que genera el modelo **nunca se ejecuta fuera del sandbox**. Cada experimento corre en un

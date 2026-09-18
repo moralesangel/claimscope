@@ -1,0 +1,53 @@
+{
+  "paper_id": "1512.03385",
+  "title": "Deep Residual Learning for Image Recognition",
+  "notes": "Annotated by hand from the paper. The degradation problem (Fig. 4) is the claim most worth testing at reduced scale: it is a comparison between two architectures of equal depth, and the effect is about optimisation rather than about scale.",
+  "claims": [
+    {
+      "text": "Plain networks show higher training error as depth increases, and residual networks of the same depth do not.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Fig. 4",
+      "notes": "The degradation problem. Both arms are small convnets on an image dataset, so this shrinks cleanly."
+    },
+    {
+      "text": "A 34-layer residual network reaches lower validation error than an 18-layer one, while the plain 34-layer network is worse than the plain 18-layer one.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 2",
+      "notes": "Same effect as above, stated as a depth comparison."
+    },
+    {
+      "text": "The 152-layer residual network reaches 3.57% top-5 error on the ImageNet test set.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Table 5",
+      "notes": "A headline number; not reproducible at reduced scale by construction."
+    },
+    {
+      "text": "Identity shortcuts perform comparably to projection shortcuts while adding no parameters.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Table 3",
+      "notes": "The paper reports a small difference between options A, B and C. At reduced scale with few seeds this is likely below the noise floor, so inconclusive is the honest expectation."
+    },
+    {
+      "text": "Residual networks converge faster in the early stages of training than plain networks of the same depth.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Sec. 4.1",
+      "notes": "Convergence speed, measurable within a few epochs."
+    },
+    {
+      "text": "A 1202-layer residual network performs worse than the 110-layer one on CIFAR-10, which the paper attributes to overfitting.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Table 6",
+      "notes": "Depends on training a 1202-layer network, which is far outside a small CPU budget."
+    }
+  ]
+}

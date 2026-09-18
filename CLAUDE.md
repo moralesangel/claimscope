@@ -110,8 +110,28 @@ Otras notas:
   el repositorio del paper, y `codegen` genera un adaptador que lo ejecuta a escala reducida.
   La aceptación ("un paper real con código oficial llega a veredicto") **necesita Docker**, igual
   que la fase 3. La inspección sí está verificada contra repos reales (pytorch-cifar, nanoGPT).
-- Siguiente: completar las aceptaciones de las fases 3 y 5 con Docker, o fase 6 (harness de
-  evaluación), que no necesita sandbox.
+- **Fase 6 (harness de evaluación): completada en lo medible.** `eval/` con anotaciones,
+  emparejamiento de claims, métricas y `run_eval.py`. Tabla producida sobre 2 papers anotados.
+
+  **Limitación conocida:** las métricas de ejecución y de veredicto no se pueden medir sin Docker.
+  El harness devuelve `measured=False` y la tabla muestra `—`, no `0.00`: un cero afirmaría que el
+  agente falló, cuando lo cierto es que no se midió.
+- Siguiente: completar las aceptaciones de las fases 3 y 5 con Docker, ampliar a 10-15 papers
+  anotados, o fase 7 (pulido: trazas, README con diagrama, resultados).
+
+### Notas de la fase 6
+
+- **El emparejamiento es léxico por defecto, no con LLM.** El plan sugiere el LLM como juez, pero
+  eso es no determinista y cuesta una llamada por par. `eval/matching.py` usa Jaccard sobre palabras
+  de contenido, ponderando métrica y nombres de brazo, que es lo que distingue claims del mismo
+  paper. Emparejamiento voraz y uno a uno.
+- **La clasificación se puntúa solo sobre los claims emparejados.** Penalizar el tipo de un claim
+  que el agente nunca extrajo contaría el mismo fallo dos veces.
+- **La evaluación auto-aprueba los planes.** Un humano aprobando cada plan mediría al humano, no al
+  agente. Eso implica que se ejecutaría código sin revisar, así que sin sandbox el harness **para
+  antes de ejecutar** en vez de correrlo sin protección.
+- `eval/` necesita `__init__.py` y está incluido en mypy (`files = ["src", "eval"]`).
+- B008 de ruff está desactivado en las CLIs: `typer.Option` en los defaults es su API documentada.
 
 ### Notas de la fase 5
 

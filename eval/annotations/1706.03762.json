@@ -1,0 +1,82 @@
+{
+  "paper_id": "1706.03762",
+  "title": "Attention Is All You Need",
+  "notes": "Annotated by hand. Most of this paper's headline results depend on scale and on WMT-size data, so the testable claims are the Table 3 ablations, which are internal comparisons of the same architecture.",
+  "claims": [
+    {
+      "text": "The Transformer reaches a higher BLEU score than previous best models, including ensembles, on WMT 2014 English-to-German.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Table 2",
+      "notes": "One arm is an external published system that cannot be rerun, and the result depends on WMT-scale data."
+    },
+    {
+      "text": "The big Transformer model achieves 28.4 BLEU on WMT 2014 English-to-German.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Table 2",
+      "notes": "A headline number."
+    },
+    {
+      "text": "The big Transformer model achieves 41.8 BLEU on WMT 2014 English-to-French.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Table 2",
+      "notes": "A headline number."
+    },
+    {
+      "text": "Single-head attention is worse than multi-head attention when the total computation is held constant.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 3 row A",
+      "notes": "An internal ablation on a small sequence task; the mechanism is not scale dependent."
+    },
+    {
+      "text": "Too many attention heads also hurts quality, so there is an intermediate optimum.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Table 3 row A",
+      "notes": "The differences between 8, 16 and 32 heads are small; at reduced scale with three seeds this is likely inside the noise."
+    },
+    {
+      "text": "Reducing the attention key size from 64 to 16 hurts translation quality.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 3 row B",
+      "notes": "A capacity ablation, visible on a small task."
+    },
+    {
+      "text": "Learned positional embeddings perform nearly identically to sinusoidal positional encodings.",
+      "claim_type": "comparative",
+      "testable": true,
+      "expected_verdict": "inconclusive",
+      "source_location": "Table 3 row E",
+      "notes": "The paper itself reports near-identical results, so a correct reduced-scale run should find no difference, which is inconclusive rather than consistent."
+    },
+    {
+      "text": "Dropout helps avoid overfitting in the Transformer.",
+      "claim_type": "ablation",
+      "testable": true,
+      "expected_verdict": "consistent_at_reduced_scale",
+      "source_location": "Table 3 row D",
+      "notes": "Regularisation, which shows up readily at small scale."
+    },
+    {
+      "text": "A four-layer Transformer reaches 92.7 F1 on WSJ section 23 constituency parsing in a semi-supervised setting.",
+      "claim_type": "absolute",
+      "testable": false,
+      "source_location": "Table 4",
+      "notes": "A headline number on a dataset that is not freely bundled."
+    },
+    {
+      "text": "The Transformer trains in significantly less time than recurrent or convolutional models of comparable quality.",
+      "claim_type": "comparative",
+      "testable": false,
+      "source_location": "Table 2",
+      "notes": "A wall-clock claim about GPU-scale training; the comparison does not transfer to a CPU budget."
+    }
+  ]
+}

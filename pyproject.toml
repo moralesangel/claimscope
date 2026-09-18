@@ -57,12 +57,18 @@ extend-exclude = ["*.md"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
+[tool.ruff.lint.per-file-ignores]
+# typer.Option/Argument in defaults is that library's documented API, not the
+# mutable-default bug B008 is about.
+"**/cli.py" = ["B008"]
+"eval/run_eval.py" = ["B008"]
+
 [tool.mypy]
 # The interpreter here is 3.12 and numpy's bundled stubs use 3.12-only syntax,
 # so type-check against 3.12. requires-python stays at 3.11 for the package.
 python_version = "3.12"
 strict = true
-files = ["src"]
+files = ["src", "eval"]
 
 [[tool.mypy.overrides]]
 module = ["arxiv.*", "fitz.*", "docker.*", "scipy.*"]
