@@ -32,6 +32,10 @@ Outcome: {failure_summary}
 - Do not silently change what is being measured in order to make the script run. If the failure
   means the experiment as designed cannot work, say so in your diagnosis and fix the smallest thing
   that makes it correct.
+- **If the runs all returned the same value**, the script did not crash -- it measured nothing.
+  Usually the task is too easy: a model that scores perfectly on both arms leaves no room for the
+  effect. Make the task harder in a way that keeps the comparison fair: add label noise, shrink the
+  training set, or increase the noise in the data-generating rule. Do not change only one arm.
 
 ## Output
 

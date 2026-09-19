@@ -165,6 +165,56 @@ class TestRunStudy:
             assert Path(result.log_path).exists()
 
 
+class TestDegenerateStudy:
+    """An experiment where every run ties measured nothing, and should be fixed.
+
+    From a real run: the generated task was so easy that both arms scored zero
+    errors on every seed. Nothing crashed, so without this the study would be
+    reported as a clean null result.
+    """
+
+    def test_identical_results_are_sent_to_debug(self, settings: Settings) -> None:
+        class TiedRunner(FakeRunner):
+            """Returns the same metric no matter the arm or seed."""
+
+            def execute(self, request: object) -> object:  # type: ignore[override]
+                result = super().execute(request)  # type: ignore[arg-type]
+                (request.workspace / RESULT_FILE).write_text(  # type: ignore[attr-defined]
+                    json.dumps({"arm": "x", "seed": 0, "metric": 0.0, "metric_name": "m"}),
+                    encoding="utf-8",
+                )
+                return result
+
+        results, failure = run_study(TiedRunner(), _claim(), _plan(), _workspace(settings), 60)
+
+        assert len(results) == 6
+        assert failure is not None
+        assert "measured nothing" in failure.traceback_text()
+
+    def test_the_message_tells_the_debugger_what_to_do(self, settings: Settings) -> None:
+        class TiedRunner(FakeRunner):
+            def execute(self, request: object) -> object:  # type: ignore[override]
+                result = super().execute(request)  # type: ignore[arg-type]
+                (request.workspace / RESULT_FILE).write_text(  # type: ignore[attr-defined]
+                    json.dumps({"arm": "x", "seed": 0, "metric": 1.0, "metric_name": "m"}),
+                    encoding="utf-8",
+                )
+                return result
+
+        _results, failure = run_study(TiedRunner(), _claim(), _plan(), _workspace(settings), 60)
+
+        assert failure is not None
+        assert "too easy" in failure.traceback_text()
+        assert "keeping the comparison fair" in failure.traceback_text()
+
+    def test_varying_results_are_not_flagged(self, settings: Settings) -> None:
+        # The normal case: FakeRunner varies the metric by arm and seed.
+        results, failure = run_study(FakeRunner(), _claim(), _plan(), _workspace(settings), 60)
+
+        assert failure is None
+        assert len(results) == 6
+
+
 class TestMissingMetric:
     def test_a_run_without_result_json_is_a_failure(self, settings: Settings) -> None:
         class SilentRunner(FakeRunner):

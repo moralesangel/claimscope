@@ -172,7 +172,38 @@ def run_study(
             if result is not None:
                 results.append(result)
 
+    if degenerate := _degenerate_failure(claim, results):
+        return results, degenerate
+
     return results, None
+
+
+def _degenerate_failure(claim: Claim, results: list[RunResult]) -> ExecutionFailure | None:
+    """Treat an experiment that measured nothing as a failure worth debugging.
+
+    Every run returning the same value means the task could not separate the
+    arms -- usually because it is too easy. The script did not crash, so nothing
+    would otherwise notice, and the study would be reported as a clean null
+    result. Sending it to the debug node gives it a chance to make the task
+    harder instead.
+    """
+    values = [result.metric_value for result in results]
+    if len(values) < 2 or len(set(values)) > 1:
+        return None
+
+    message = (
+        f"Every run returned the same metric value ({values[0]:g}), so the experiment "
+        "measured nothing: the task cannot separate the arms. It is most likely too "
+        "easy, letting both arms score perfectly. Make the task harder while keeping "
+        "the comparison fair."
+    )
+    logger.warning("%s: %s", claim.id, message)
+    return ExecutionFailure(
+        claim_id=claim.id,
+        arm=results[0].arm,
+        seed=results[0].seed,
+        result=ExecutionResult(exit_code=1, stdout="", stderr=message, duration_s=0.0),
+    )
 
 
 def execute(
