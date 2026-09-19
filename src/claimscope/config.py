@@ -8,12 +8,14 @@ from typing import Literal
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-Provider = Literal["anthropic", "google"]
+Provider = Literal["anthropic", "google", "ollama"]
 
 # Used when the provider is switched without naming a model.
 DEFAULT_MODELS: dict[Provider, str] = {
     "anthropic": "claude-sonnet-5",
     "google": "gemini-3.6-flash",
+    # Small enough to run on a laptop, and reliable at structured output.
+    "ollama": "qwen3:4b",
 }
 
 
@@ -43,10 +45,30 @@ class Settings(BaseSettings):
             self.model_name = DEFAULT_MODELS[self.provider]
         return self
 
+    ollama_base_url: str = "http://localhost:11434"
+    """Where the local Ollama server listens."""
+
+    ollama_context_tokens: int = 24_000
+    """Context window for the local model.
+
+    Ollama defaults to 2048, which would silently truncate a paper: the
+    extraction prompt alone carries up to MAX_PAPER_CHARS of text. Large enough
+    for a truncated paper, small enough to fit in a laptop's RAM.
+    """
+
     @property
     def active_api_key(self) -> str | None:
-        """The API key for the selected provider."""
-        return self.anthropic_api_key if self.provider == "anthropic" else self.gemini_api_key
+        """The API key for the selected provider, or None if it needs none."""
+        if self.provider == "anthropic":
+            return self.anthropic_api_key
+        if self.provider == "google":
+            return self.gemini_api_key
+        return None  # a local model needs no key
+
+    @property
+    def needs_api_key(self) -> bool:
+        """Whether the selected provider authenticates at all."""
+        return self.provider in {"anthropic", "google"}
 
     runs_dir: Path = Path("runs")
 

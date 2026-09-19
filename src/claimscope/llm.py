@@ -85,12 +85,26 @@ class ProviderStructuredLLM:
 
         provider = self._settings.provider
         api_key = self._settings.active_api_key
-        if not api_key:
+        if self._settings.needs_api_key and not api_key:
             raise RuntimeError(
                 f"{_KEY_ENV_VAR[provider]} is not set. Copy .env.example to .env and fill it in."
             )
 
-        if provider == "anthropic":
+        if provider == "ollama":
+            from langchain_ollama import ChatOllama
+
+            # A local model is slow but never rate limited, so the timeout is
+            # generous and there is nothing to back off from.
+            self._model = ChatOllama(
+                model=self._settings.model_name,
+                base_url=self._settings.ollama_base_url,
+                temperature=0.0,
+                num_ctx=self._settings.ollama_context_tokens,
+            )
+        elif api_key is None:
+            # Unreachable: needs_api_key covers exactly these providers.
+            raise RuntimeError(f"no API key available for provider {provider}")
+        elif provider == "anthropic":
             from langchain_anthropic import ChatAnthropic
 
             # These are pydantic field aliases; ChatAnthropic types its

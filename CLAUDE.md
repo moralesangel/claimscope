@@ -232,6 +232,36 @@ Otras notas:
   agota rápido probando; se repone al día siguiente.
 - La regla "`absolute` nunca es verificable" se aplica en código, no se confía al modelo.
 
+### Modelo local (Ollama)
+
+`CLAIMSCOPE_PROVIDER=ollama` usa un modelo local: sin clave, sin cuota. Instalado y verificado con
+**Qwen3 4B Q4_K_M** (2,5 GB).
+
+**La red bloquea el CDN de Ollama.** `registry.ollama.ai` responde, pero
+`r2.cloudflarestorage.com` da timeout, así que `ollama pull` falla siempre. Hugging Face sí
+funciona: descarga el `.gguf` de ahí y haz `ollama create` con un Modelfile. El que se usó está en
+`C:\Users\angel\models\Modelfile`.
+
+**`num_ctx` es crítico.** Ollama usa 2048 tokens por defecto, y el prompt de extracción lleva hasta
+60k caracteres (~15k tokens): el paper se truncaría en silencio. Se fija a 24.000 tanto en el
+Modelfile como en `Settings.ollama_context_tokens`.
+
+**Qué se midió (Intel Ultra 5 225H, 14 núcleos, sin GPU usable):**
+
+| Tarea | Tiempo | Calidad |
+|---|---|---|
+| Extracción sobre un extracto corto | 97 s | JSON válido, pero `arms=[]` en todas |
+| Triage de 3 claims | 47 s | Clasificó mal: aprobó el claim de TIMIT (dataset con licencia) |
+| Extracción sobre el paper real (20k chars) | **>15 min, abortado** | — |
+
+**Conclusión: sirve para probar el cableado, no para producción.** Tres problemas de calidad que
+Gemini no tiene: no rellena `arms` (lo que rompe `codegen`), confunde `ablation` con `absolute`, y
+el triage deja pasar claims no verificables. Y con un paper completo el tiempo por llamada lo hace
+impracticable: una ejecución son 4+ llamadas.
+
+Úsalo para verificar que el pipeline conecta sin gastar cuota; usa Gemini o Anthropic para juzgar
+la calidad del agente.
+
 ### Proveedores de LLM
 
 El plan fija Anthropic. Como esa cuenta no tiene saldo, `llm.py` abstrae el proveedor detrás del

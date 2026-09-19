@@ -56,8 +56,14 @@ uv sync --all-extras
 cp .env.example .env
 ```
 
-ClaimScope funciona con Anthropic o con Google Gemini. En `.env`, pon
-`CLAIMSCOPE_PROVIDER=anthropic|google` y rellena `ANTHROPIC_API_KEY` o `GEMINI_API_KEY`.
+ClaimScope funciona con Anthropic, Google Gemini o un modelo local vía Ollama. En `.env`, pon
+`CLAIMSCOPE_PROVIDER=anthropic|google|ollama` y rellena la clave correspondiente (ollama no
+necesita ninguna).
+
+**Sobre el modelo local:** sirve para comprobar que el pipeline funciona sin gastar cuota, pero no
+para juzgar la calidad del agente. Probado con Qwen3 4B en un portátil sin GPU: tarda minutos por
+llamada, no rellena los brazos de las comparaciones y su triage deja pasar afirmaciones que no son
+verificables. Para resultados en los que confiar, usa un modelo alojado.
 
 ## Uso
 
