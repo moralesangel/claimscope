@@ -109,6 +109,17 @@ def analyze(state: GraphState, settings: Settings | None = None) -> GraphState:
     return {"verdicts": verdicts}
 
 
+def _is_degenerate(values: list[float]) -> bool:
+    """Whether an arm produced no usable signal.
+
+    All-identical values across seeds mean the experiment did not measure
+    anything: a task too easy to separate the arms, a metric that never moved,
+    or a script that returned a constant. Reporting a zero effect would imply
+    the arms were compared and found equal, which is not what happened.
+    """
+    return len(set(values)) == 1
+
+
 def _verdict_for(claim: Claim, results: list[RunResult]) -> ClaimVerdict:
     """Compare the two arms of one claim and build its verdict."""
     arms = arms_for(claim)
@@ -130,6 +141,16 @@ def _verdict_for(claim: Claim, results: list[RunResult]) -> ClaimVerdict:
             claim.id,
             f"Arms are not matched: {treatment_name} has {len(treatment)} runs but "
             f"{control_name} has {len(control)}. A comparison would not be valid.",
+        )
+
+    if _is_degenerate(treatment + control):
+        constant = treatment[0]
+        return _inconclusive(
+            claim.id,
+            f"Every run returned the same value ({constant:g}), so the experiment measured "
+            "nothing. The reduced task is probably too easy or too hard to separate the "
+            "arms, or the metric did not respond to the intervention. The experiment needs "
+            "redesigning, not rerunning.",
         )
 
     try:

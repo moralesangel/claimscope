@@ -13,7 +13,7 @@ from rich.table import Table
 
 from claimscope import __version__
 from claimscope.config import get_settings
-from claimscope.review_ui import collect_decisions
+from claimscope.review_ui import NoReviewerError, collect_decisions
 from claimscope.session import (
     checkpoint_path,
     checkpointer,
@@ -56,6 +56,10 @@ def _report_failure(exc: Exception, verbose: bool) -> None:
     langchain; what the user needs is the cause and the fix.
     """
     message = str(exc)
+    if isinstance(exc, NoReviewerError):
+        console.print(f"[red]Error:[/red] {message}")
+        return
+
     hints = (
         (
             "credit balance is too low",
@@ -127,10 +131,12 @@ def _show_claims(result: dict[str, Any]) -> None:
             console.print(f"[dim]{claim.id}: {claim.triage_reason}[/dim]")
 
 
-def _drain_interrupts(graph: Any, result: dict[str, Any], config: RunnableConfig) -> dict[str, Any]:
+def _drain_interrupts(
+    graph: Any, result: dict[str, Any], config: RunnableConfig, assume_yes: bool = False
+) -> dict[str, Any]:
     """Answer every review interrupt until the graph runs to completion."""
     while interrupts := result.get("__interrupt__"):
-        decisions = collect_decisions(console, interrupts[0].value)
+        decisions = collect_decisions(console, interrupts[0].value, assume_yes)
         result = dict(graph.invoke(Command(resume=decisions), config))
     return result
 
@@ -158,6 +164,12 @@ def _report_outcome(result: dict[str, Any], thread_id: str, settings: Any) -> No
 def analyze(
     paper_id: str = typer.Argument(help="arXiv id, e.g. 1512.03385"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show progress logs."),
+    assume_yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Approve every plan without asking. Generated code then runs unreviewed.",
+    ),
 ) -> None:
     """Analyze a paper: extract claims, triage them, and plan experiments."""
     _setup_logging(verbose)
@@ -176,7 +188,7 @@ def analyze(
             with console.status(f"Analyzing {paper_id}..."):
                 started = graph.invoke({"paper_id": paper_id}, config)
 
-            result = _drain_interrupts(graph, dict(started), config)
+            result = _drain_interrupts(graph, dict(started), config, assume_yes)
             _report_outcome(result, thread_id, settings)
     except Exception as exc:  # the CLI reports failures, it does not recover from them
         _report_failure(exc, verbose)
@@ -188,6 +200,12 @@ def analyze(
 def resume(
     thread_id: str = typer.Argument(help="Thread id printed when the run was interrupted."),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Show progress logs."),
+    assume_yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Approve every plan without asking. Generated code then runs unreviewed.",
+    ),
 ) -> None:
     """Resume an interrupted run from its checkpoint."""
     _setup_logging(verbose)
@@ -212,9 +230,11 @@ def resume(
                 _report_outcome(dict(snapshot.values), thread_id, settings)
                 return
 
-            decisions = collect_decisions(console, pending[0].value)
+            decisions = collect_decisions(console, pending[0].value, assume_yes)
             resumed = dict(graph.invoke(Command(resume=decisions), config))
-            _report_outcome(_drain_interrupts(graph, resumed, config), thread_id, settings)
+            _report_outcome(
+                _drain_interrupts(graph, resumed, config, assume_yes), thread_id, settings
+            )
     except typer.Exit:
         raise
     except Exception as exc:  # the CLI reports failures, it does not recover from them

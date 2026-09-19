@@ -139,6 +139,55 @@ class TestNonExecutedClaims:
         assert "No runs completed" in verdict.notes
 
 
+class TestDegenerateResults:
+    """An experiment that measured nothing must not read as "no difference".
+
+    This came from a real run: the generated experiment used synthetic data so
+    separable that both arms scored exactly zero errors, and the report showed a
+    clean zero effect as though the arms had been compared and found equal.
+    """
+
+    def test_all_identical_values_are_called_out(self, settings: Settings) -> None:
+        state = _state(
+            run_results={
+                "c1": _runs("treatment", [0.0, 0.0, 0.0]) + _runs("control", [0.0, 0.0, 0.0])
+            }
+        )
+
+        verdict = analyze(state, settings)["verdicts"][0]
+
+        assert verdict.verdict == "inconclusive"
+        assert "measured nothing" in verdict.notes
+        assert "redesigning" in verdict.notes
+
+    def test_it_does_not_report_a_zero_effect(self, settings: Settings) -> None:
+        state = _state(
+            run_results={
+                "c1": _runs("treatment", [1.0, 1.0, 1.0]) + _runs("control", [1.0, 1.0, 1.0])
+            }
+        )
+
+        verdict = analyze(state, settings)["verdicts"][0]
+
+        # A zero with a tight interval would look like a measured null result.
+        assert verdict.effect_estimate is None
+        assert verdict.ci_low is None
+
+    def test_a_real_null_result_is_still_analysed(self, settings: Settings) -> None:
+        """Arms that genuinely overlap are a measurement, not a degenerate run."""
+        state = _state(
+            run_results={
+                "c1": _runs("treatment", [0.80, 0.82, 0.79]) + _runs("control", [0.81, 0.78, 0.83])
+            }
+        )
+
+        verdict = analyze(state, settings)["verdicts"][0]
+
+        assert verdict.verdict == "inconclusive"
+        assert verdict.effect_estimate is not None
+        assert "measured nothing" not in verdict.notes
+
+
 class TestArmIntegrity:
     def test_unmatched_arms_are_refused(self, settings: Settings) -> None:
         # Invariant 1: comparing 3 seeds against 2 is not a valid comparison.

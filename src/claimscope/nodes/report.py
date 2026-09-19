@@ -153,7 +153,17 @@ def render_report(state: GraphState) -> str:
                 # Without the commit the run is not reproducible.
                 parts += [f"Ran against the official repository at commit `{commit}`.", ""]
             if plan := plans.get(claim.id):
-                parts += ["#### Reduction plan", "", _plan_section(plan), ""]
+                parts += [
+                    "#### Reduction plan",
+                    "",
+                    "_This is what was **designed**. The experiment was then written by a model "
+                    "from this description, so read the script in the workspace to see what "
+                    "actually ran -- the two can differ, for instance where the sandbox has no "
+                    "network and the data had to be generated instead of downloaded._",
+                    "",
+                    _plan_section(plan),
+                    "",
+                ]
             if results := run_results.get(claim.id):
                 parts += ["#### Runs", "", _results_table(results), ""]
 

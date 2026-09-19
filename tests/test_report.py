@@ -127,6 +127,17 @@ class TestContent:
             for seed in range(3):
                 assert f"| {arm} | {seed} |" in markdown
 
+    def test_the_plan_is_marked_as_designed_not_as_executed(self) -> None:
+        """A real run designed a MNIST experiment and then ran synthetic data.
+
+        Showing the plan unqualified let the report claim MNIST was used when it
+        was not, so the plan is labelled as the design rather than the record.
+        """
+        markdown = render_report(_state())
+
+        assert "what was **designed**" in markdown
+        assert "the two can differ" in markdown
+
     def test_reports_budget_usage(self) -> None:
         assert "4.2 of 60 minutes" in render_report(_state())
 
