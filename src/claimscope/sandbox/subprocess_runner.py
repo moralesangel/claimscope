@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -88,29 +89,39 @@ class SubprocessRunner:
             return
 
         logger.info("installing into the current environment: %s", ", ".join(missing))
-        try:
-            result = subprocess.run(
-                [sys.executable, "-m", "pip", "install", "--quiet", *missing],
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=900,
-            )
-        except (OSError, subprocess.SubprocessError) as exc:
-            logger.warning("could not run pip: %s", exc)
-            return
+        for command in _install_commands(missing):
+            try:
+                result = subprocess.run(
+                    command, capture_output=True, text=True, check=False, timeout=900
+                )
+            except (OSError, subprocess.SubprocessError) as exc:
+                logger.debug("%s failed to start: %s", command[0], exc)
+                continue
 
-        if result.returncode != 0:
-            # Research repos pin versions that often will not resolve, and some
-            # environments have no pip at all. The codegen prompt tells the
-            # model to work with what is available, so a failed install is a
-            # warning rather than a dead run.
-            detail = (result.stderr or result.stdout).strip()[:200]
-            logger.warning(
-                "could not install %s (%s); the experiment must work without it",
-                ", ".join(missing),
-                detail,
-            )
+            if result.returncode == 0:
+                still_missing = [name for name in missing if not _is_installed(name)]
+                if still_missing:
+                    logger.warning(
+                        "installed but not importable: %s; the experiment must work without them",
+                        ", ".join(still_missing),
+                    )
+                else:
+                    logger.info("installed %s", ", ".join(missing))
+                return
+
+            logger.debug("%s: %s", command[0], (result.stderr or result.stdout).strip()[:200])
+
+        # Research repos pin versions that often will not resolve, and some
+        # environments have neither pip nor uv. The codegen prompt tells the
+        # model to work with what is available, so this is a warning rather than
+        # a dead run -- but a loud one, because an experiment that silently
+        # falls back to random data measures nothing.
+        logger.warning(
+            "COULD NOT INSTALL %s. The experiment will have to work without them, which "
+            "usually means falling back to synthetic data and measuring nothing. Install "
+            "them yourself, or use the Docker backend, which builds its own image.",
+            ", ".join(missing),
+        )
 
     def execute(self, request: ExecutionRequest) -> ExecutionResult:
         """Run one experiment with the restrictions this backend can apply."""
@@ -166,6 +177,21 @@ class SubprocessRunner:
             stderr=completed.stderr,
             duration_s=time.monotonic() - started,
         )
+
+
+def _install_commands(packages: list[str]) -> list[list[str]]:
+    """Ways to install into this environment, best first.
+
+    uv-managed virtualenvs ship no pip at all, so pip alone is not enough --
+    this project's own venv is one of them.
+    """
+    commands: list[list[str]] = []
+
+    if uv := shutil.which("uv"):
+        # --python pins the target to this interpreter, not uv's default.
+        commands.append([uv, "pip", "install", "--python", sys.executable, "--quiet", *packages])
+    commands.append([sys.executable, "-m", "pip", "install", "--quiet", *packages])
+    return commands
 
 
 def _child_env(preamble_path: Path) -> dict[str, str]:

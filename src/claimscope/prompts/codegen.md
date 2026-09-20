@@ -51,8 +51,14 @@ Tasks that do work, all verified to produce a 30-40% train/test accuracy gap in 
 - **Overlapping clusters in low dimensions** (2 to 20 features, not 784), with noise comparable to
   the distance between centres.
 
-If a real dataset ships inside an installed package, prefer it and subsample it small. Synthetic
-data is the fallback, not the first choice.
+If a real dataset ships inside an installed package, prefer it and subsample it small
+(`sklearn.datasets.load_digits` is a good small one). Synthetic data is the fallback, not the first
+choice.
+
+**Never wrap the dataset load in a try/except that falls back to random data.** If the dataset is
+unavailable the run must fail loudly, because random features with random labels cannot show any
+effect and the study would report a confident null result from a broken environment. Let the
+ImportError propagate; the debug node will see it and fix it.
 
 ## Other constraints
 

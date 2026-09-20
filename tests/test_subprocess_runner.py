@@ -229,6 +229,30 @@ class TestGuards:
         assert runner.available()
 
 
+class TestRunnerInterface:
+    """A misplaced helper once pushed execute() out of the class body.
+
+    Nothing caught it until a real run failed with "no attribute 'execute'",
+    because every other test constructs the runner and calls one method.
+    """
+
+    def test_it_satisfies_the_runner_protocol(self, settings: Settings) -> None:
+        from claimscope.sandbox.runner import Runner
+
+        runner: Runner = SubprocessRunner(settings)
+
+        for method in ("prepare", "execute", "available"):
+            assert callable(getattr(runner, method, None)), f"missing {method}"
+
+    def test_build_runner_returns_a_usable_backend(self, settings: Settings) -> None:
+        from claimscope.sandbox.runner import build_runner
+
+        runner = build_runner(settings.model_copy(update={"sandbox_backend": "subprocess"}))
+
+        assert isinstance(runner, SubprocessRunner)
+        assert callable(runner.execute)
+
+
 class TestPreamble:
     def test_includes_both_restrictions(self) -> None:
         preamble = build_preamble(memory_mb=256, cpu_seconds=60)
