@@ -101,7 +101,14 @@ class Settings(BaseSettings):
     max_claims: int = 2
     """K: how many claims triage may select for execution."""
 
-    budget_minutes_total: float = 60.0
+    budget_minutes_total: float = 120.0
+    """Wall-clock minutes for all arms and seeds of every claim.
+
+    Measured rather than guessed: a plain MLP on a MNIST subset, two arms by
+    three seeds, extrapolates to about 100 minutes on a laptop CPU. A 60-minute
+    budget rejected that experiment before it started, which looks like a
+    failure but is just a budget set below what the work costs.
+    """
     seeds_per_arm: int = 3
     max_debug_attempts: int = 3
 

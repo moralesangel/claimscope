@@ -107,6 +107,17 @@ class TestBudgetGuard:
         assert "c1" not in result["run_results"]
         assert any("exceeds" in e for e in result["errors"])
 
+    def test_the_message_says_how_to_fix_it(self, settings: Settings) -> None:
+        """Being told a run is too expensive is only useful with a next step."""
+        runner = FakeRunner(seconds_per_call=60.0)
+        tight = settings.model_copy(update={"budget_minutes_total": 1.0})
+
+        result = execute(_state(settings), tight, runner)
+
+        message = next(e for e in result["errors"] if "exceeds" in e)
+        assert "CLAIMSCOPE_BUDGET_MINUTES_TOTAL" in message
+        assert "reject the plan" in message
+
     def test_runs_a_study_that_fits(self, settings: Settings) -> None:
         runner = FakeRunner(seconds_per_call=0.01)
 

@@ -271,7 +271,9 @@ def execute(
             )
             over_budget.append(claim_id)
             errors.append(
-                f"{claim_id}: estimated {projected:.1f} min exceeds the {remaining:.1f} min left"
+                f"{claim_id}: estimated {projected:.1f} min exceeds the {remaining:.1f} min "
+                f"left. Raise CLAIMSCOPE_BUDGET_MINUTES_TOTAL above {projected:.0f}, or reject "
+                "the plan at review and ask for a smaller experiment."
             )
             continue
 
