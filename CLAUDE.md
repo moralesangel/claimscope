@@ -44,45 +44,21 @@ uv run python -m pytest                 # tests (LLM mockeado)
 uv run python -m pytest -m llm          # tests contra la API real, bajo demanda
 ```
 
-## Entorno de esta máquina
+## Entorno
 
-Tres restricciones locales, con su solución ya aplicada. No hace falta volver a diagnosticarlas.
+- Python 3.11+ (mypy apunta a 3.12: los stubs de numpy usan sintaxis de esa versión).
+- Desarrollo sin CUDA: los experimentos deben correr en CPU en pocos minutos.
+- **LangGraph 1.x**, no la serie 0.2.x que sugiere el plan. Consultar su documentación antes de
+  tocar `interrupt`, `Command` o checkpointers.
+- Los comandos se invocan como `uv run python -m <modulo>`, no por el nombre del ejecutable: en
+  algunas máquinas Windows los shims `.exe` del entorno virtual están bloqueados por políticas de
+  integridad de código.
+- `vendor/xxhash_pure/` existe porque la rueda nativa de `xxhash` puede estar bloqueada en Windows
+  con Smart App Control, y LangGraph la importa a nivel de módulo. Implementa XXH3-128 en Python
+  puro, validado contra los 12 483 vectores oficiales, así que los checkpoints son portables. En
+  una máquina sin esa restricción, basta quitar la entrada de `[tool.uv.sources]`.
 
-1. **`uv` no está en el PATH global.** Está en `C:\Users\angel\.local\bin`. Anteponerlo en cada
-   sesión: `$env:Path = "C:\Users\angel\.local\bin;$env:Path"`.
-2. **Smart App Control está en modo enforcement** (`VerifiedAndReputablePolicyState = 1`). Bloquea
-   los shims `.exe` de `.venv\Scripts\` (`claimscope.exe`, `mypy.exe`, `pytest.exe`). Por eso
-   **siempre se invoca con `uv run python -m <modulo>`**, nunca por el nombre del ejecutable.
-   `numpy`, `scipy` y `pymupdf` sí importan (sus ruedas tienen reputación establecida).
-
-   SAC no admite exclusiones por carpeta: se aplica con políticas de Code Integrity de kernel y
-   solo tiene los estados On / Evaluation / Off. Las exclusiones de Defender son otro mecanismo
-   y no sirven aquí. No perder tiempo buscando una excepción por ruta.
-3. **`xxhash` está bloqueado** (su `.pyd` no está firmada; probadas las versiones 3.2.0, 3.4.1 y
-   3.5.0, todas bloqueadas). No es periférico: `langgraph/types.py` y `langgraph/pregel/_algo.py`
-   lo importan a nivel de módulo, así que **sin resolverlo LangGraph entero no importa**.
-
-   **Solución aplicada:** `vendor/xxhash_pure/` implementa XXH3-128 en Python puro y
-   `[tool.uv.sources]` redirige la dependencia ahí. Toda la superficie que usa el árbol de
-   dependencias son dos nombres (`xxh3_128`, `xxh3_128_hexdigest`), y solo para derivar IDs de
-   tarea deterministas. La implementación está validada **bit a bit contra los 12 483 vectores
-   oficiales** de xxHash, así que los digests son compatibles con una instalación normal: un
-   checkpoint escrito aquí se lee igual en otra máquina. `tests/test_xxhash_shim.py` protege esto
-   con 287 vectores muestreados que cubren todas las rutas del algoritmo.
-
-   Si alguna vez se trabaja en una máquina sin SAC, basta con quitar la entrada de
-   `[tool.uv.sources]` y la dependencia directa de `xxhash` para volver a la rueda nativa.
-
-   El plugin de pytest de `langsmith` sigue desactivado (`addopts = "-p no:langsmith_plugin"`)
-   porque no lo usamos y las trazas son opcionales.
-
-Otras notas:
-
-- Hardware de desarrollo sin CUDA: las fases 1 a 5 deben funcionar en CPU con experimentos de pocos
-  minutos.
-- Python 3.11+ (el intérprete del sistema es 3.12).
-- **LangGraph instalado: 1.2.11**, no la serie 0.2.x que sugiere el plan. La API de `interrupt`,
-  `Command` y checkpointers debe consultarse para 1.x antes de la fase 2.
+Las particularidades de una máquina concreta van en `CLAUDE.local.md`, que git ignora.
 
 ## Estado
 
@@ -255,8 +231,7 @@ Otras notas:
 
 **La red bloquea el CDN de Ollama.** `registry.ollama.ai` responde, pero
 `r2.cloudflarestorage.com` da timeout, así que `ollama pull` falla siempre. Hugging Face sí
-funciona: descarga el `.gguf` de ahí y haz `ollama create` con un Modelfile. El que se usó está en
-`C:\Users\angel\models\Modelfile`.
+funciona: descarga el `.gguf` de ahí y haz `ollama create` con un Modelfile. El Modelfile debe fijar `num_ctx`.
 
 **`num_ctx` es crítico.** Ollama usa 2048 tokens por defecto, y el prompt de extracción lleva hasta
 60k caracteres (~15k tokens): el paper se truncaría en silencio. Se fija a 24.000 tanto en el
@@ -289,7 +264,7 @@ código. `CLAIMSCOPE_MODEL_NAME` vacío toma el modelo por defecto del proveedor
 - **Los modelos `gemini-2.5-*` están retirados** para cuentas nuevas; la serie actual es 3.x.
 - **`gemini-3.1-pro-preview` da 429 con `limit: 0`** en el tier gratuito: no es congestión, es que
   no está disponible. Solo `flash` funciona con esta clave.
-- La clave de Gemini del usuario tiene prefijo `AQ.` (no el clásico `AIza`) y va en la cabecera
+- Las claves de Gemini pueden llevar prefijo `AQ.` además del clásico `AIza`; ambas van en la
   `x-goog-api-key`.
 - `_is_transient()` distingue fallos reintentables (503, 429 por congestión) de permanentes
   (`limit: 0`, saldo agotado, auth). Reintentar un `limit: 0` no sirve de nada.

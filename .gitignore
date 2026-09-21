@@ -1,4 +1,5 @@
 .env
+CLAUDE.local.md
 runs/
 *.sqlite
 *.sqlite3

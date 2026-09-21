@@ -51,6 +51,11 @@ packages = ["src/claimscope"]
 # against the 12483 official XXH3-128 vectors (see vendor/xxhash_pure/ and
 # tests/test_xxhash_shim.py), so digests stay compatible with a normal install.
 [tool.uv.sources]
+# Pure-Python XXH3-128, used everywhere for reproducibility. It exists because
+# Windows machines with Smart App Control block the unsigned native wheel, and
+# LangGraph imports xxhash at module scope, so without it the graph cannot even
+# be imported there. Validated bit-for-bit against the official vectors, so
+# checkpoints stay portable. Remove this line to use the faster native wheel.
 xxhash = { path = "vendor/xxhash_pure", editable = true }
 
 [tool.ruff]
