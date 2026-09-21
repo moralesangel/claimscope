@@ -123,8 +123,16 @@ Otras notas:
 - **Sandbox de subproceso + notebook de Colab: añadidos.** `CLAIMSCOPE_SANDBOX_BACKEND=subprocess`
   permite ejecutar donde no hay Docker. **El pipeline ya se ha ejecutado de punta a punta**: un
   experimento real corre, produce métricas y llega a veredicto (`tests/test_end_to_end.py`).
-- Pendiente, y bloqueado por el entorno, no por el código: el sandbox Docker nunca se ha ejecutado,
-  y la validación de triage/planes con un LLM real.
+- **VALIDADO DE PUNTA A PUNTA CON UN LLM REAL.** Ejecución completa sobre arXiv 1207.0580 con
+  `gemini-3.5-flash` y sandbox de subproceso: 8 claims extraídos, 7 descartados por triage con
+  motivos correctos, experimento reducido a `load_digits`, 10 ejecuciones (2 brazos × 5 semillas),
+  veredicto `consistent_at_reduced_scale` con efecto +0.068, IC [+0.055, +0.082], Welch p=4.4e-05.
+  El informe está guardado en `docs/example-report.md`.
+
+  Esto cierra la duda que quedaba: el juicio del agente es bueno y el pipeline produce resultados
+  con señal real.
+- Pendiente, y bloqueado solo por el entorno: el sandbox Docker nunca se ha ejecutado (falta WSL2),
+  y el harness de evaluación no se ha corrido sobre los 13 papers.
 
 ### Notas del backend de subproceso
 

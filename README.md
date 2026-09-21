@@ -92,6 +92,26 @@ workspaces de cada experimento y `report.md`. La caché se reutiliza entre ejecu
 En máquinas con Smart App Control, los `.exe` del entorno virtual están bloqueados; por eso los
 comandos se invocan como `python -m`.
 
+## Un resultado real
+
+[`docs/example-report.md`](docs/example-report.md) es el informe de una ejecución de verdad sobre el
+paper de dropout (arXiv 1207.0580), con `gemini-3.5-flash` en un portátil sin GPU. Un resumen:
+
+De 8 afirmaciones extraídas, el triage descartó 7 con motivos concretos — TIMIT por ser un dataset
+propietario, ImageNet y las máquinas de Boltzmann por coste de cómputo. La restante se redujo a un
+MLP sobre `sklearn.datasets.load_digits` y se ejecutó con 5 semillas por brazo:
+
+| Brazo | Error de test | Desv. típica |
+|---|---|---|
+| Sin dropout | 18.7% | 0.014 |
+| Con dropout 50% + L2 | **11.9%** | 0.010 |
+
+**Veredicto: `consistent_at_reduced_scale`.** Efecto +0.068, IC 95% [+0.055, +0.082], Welch
+p=4.4e-05. El intervalo queda entero en la dirección que predice el paper.
+
+Lo que esto significa: la *dirección* del efecto de dropout sobrevive al encogimiento. No que se
+hayan reproducido los 160→130 errores que reporta el paper.
+
 ## Cómo leer un veredicto
 
 Ambos brazos se ejecutan con el mismo presupuesto, el mismo dataset y las mismas semillas. El efecto
@@ -205,19 +225,18 @@ experimento más barato.
 
 ## Estado del proyecto
 
-El pipeline está completo y **se ha ejecutado de punta a punta**: un experimento real corre en el
-sandbox de subproceso, produce métricas y llega a un veredicto con su intervalo de confianza.
-`tests/test_end_to_end.py` lo comprueba en cada ejecución de la suite.
+El pipeline está completo y **validado de punta a punta con un modelo real**: ver
+[`docs/example-report.md`](docs/example-report.md). `tests/test_end_to_end.py` protege ese camino en
+cada ejecución de la suite.
 
-Dos cosas siguen sin verificarse, y conviene saberlo antes de confiar en un resultado:
+Queda una cosa sin verificar, y conviene saberlo antes de confiar en un resultado:
 
 - **El sandbox Docker nunca se ha ejecutado**, porque la máquina de desarrollo no lo tiene instalado.
   Sus propiedades de contención están testeadas contra un cliente falso, y
   `tests/test_sandbox_integration.py` contiene las pruebas reales, que se saltan solas hasta que haya
   un demonio disponible.
-- **La calidad del triage y de los planes con un LLM real** solo se ha observado en la extracción de
-  afirmaciones. El resto está validado con modelos simulados, así que el pipeline está probado pero
-  el juicio del agente no.
+- **El sandbox Docker** sigue sin ejecutarse, pero el de subproceso sí: ver el resultado real más
+  arriba.
 
 Con Docker disponible: `uv run python -m pytest -m docker` y luego un `analyze` real.
 
