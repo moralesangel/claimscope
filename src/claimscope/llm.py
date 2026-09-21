@@ -31,8 +31,17 @@ class StructuredLLM(Protocol):
 
 _KEY_ENV_VAR = {"anthropic": "ANTHROPIC_API_KEY", "google": "GEMINI_API_KEY"}
 
-TRANSIENT_RETRIES = 4
+TRANSIENT_RETRIES = 8
+"""Attempts before giving up on a transient failure.
+
+Free-tier models are congested for minutes at a time, and a 503 is a refusal
+rather than a served request, so waiting costs nothing but wall-clock. Eight
+attempts with the backoff below wait about six and a half minutes in total.
+"""
+
 TRANSIENT_BACKOFF_S = 5.0
+MAX_BACKOFF_S = 120.0
+"""Cap on a single wait, so the delay plateaus instead of doubling forever."""
 
 # Server-side conditions that clear on their own.
 _TRANSIENT_MARKERS = (
@@ -55,6 +64,18 @@ _PERMANENT_MARKERS = (
     "generaterequestsperdayperprojectpermodel",
     "perdayperproject",
 )
+
+
+def _is_quota_exhausted(message: str) -> bool:
+    """Whether this model's allowance is spent, as opposed to any other failure.
+
+    Distinct from _is_transient: waiting will not help, but another model will,
+    because the free tier counts per model rather than per account.
+    """
+    lowered = message.lower()
+    # Only the per-day and zero-quota signatures: a per-minute 429 clears on its
+    # own, and _is_transient already waits that out.
+    return any(marker in lowered for marker in ("perdayperproject", "limit: 0"))
 
 
 def _is_transient(message: str) -> bool:
@@ -146,7 +167,7 @@ class ProviderStructuredLLM:
                 if not _is_transient(message) or attempt == TRANSIENT_RETRIES:
                     raise
                 last_error = exc
-                delay = TRANSIENT_BACKOFF_S * (2 ** (attempt - 1))
+                delay = min(TRANSIENT_BACKOFF_S * (2 ** (attempt - 1)), MAX_BACKOFF_S)
                 logger.warning(
                     "transient LLM failure (attempt %d/%d), retrying in %.0fs: %s",
                     attempt,
@@ -159,7 +180,43 @@ class ProviderStructuredLLM:
         raise RuntimeError(f"unreachable: {last_error}")
 
     def invoke_structured(self, prompt: str, schema: type[T]) -> T:
-        """Invoke the model, retrying once if the reply fails validation.
+        """Invoke the model, moving to a fallback if this one is out of quota.
+
+        Google counts its free tier per model, so an exhausted daily allowance
+        is not the end of the run: the next model in the chain has its own.
+        """
+        while True:
+            try:
+                return self._invoke_one_model(prompt, schema)
+            except Exception as exc:
+                message = str(exc)
+                # Quota exhaustion is the obvious case, but a model that stays
+                # congested through the whole backoff is equally unusable, and
+                # another model is often serving fine at that moment.
+                recoverable = _is_quota_exhausted(message) or _is_transient(message)
+                if not recoverable or not self._advance_model():
+                    raise
+
+    def _advance_model(self) -> bool:
+        """Switch to the next model in the chain. False when there is none left."""
+        chain = self._settings.model_chain()
+        try:
+            position = chain.index(self._settings.model_name)
+        except ValueError:
+            return False
+
+        if position + 1 >= len(chain):
+            logger.error("no model in the chain could serve the request: %s", ", ".join(chain))
+            return False
+
+        nxt = chain[position + 1]
+        logger.warning("%s is unusable right now; switching to %s", self._settings.model_name, nxt)
+        self._settings = self._settings.model_copy(update={"model_name": nxt})
+        self._model = None  # rebuilt lazily against the new model
+        return True
+
+    def _invoke_one_model(self, prompt: str, schema: type[T]) -> T:
+        """Invoke the current model, retrying once if the reply fails validation.
 
         The plan requires validating every LLM output and retrying once on
         failure, logging the error either way. Transient transport failures are

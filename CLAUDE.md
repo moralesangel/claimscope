@@ -228,8 +228,16 @@ Otras notas:
 - **`max_retries=0` en ambos proveedores.** Sus SDKs reintentan por su cuenta (~40 s en un error de
   cuota diaria que nunca se resolverá) y ocultan los intentos de nuestro logging. `_is_transient()`
   decide mejor: distingue congestión de cuota agotada.
-- **El tier gratuito de Gemini da 20 peticiones/día** por modelo (`GenerateRequestsPerDay...`). Se
-  agota rápido probando; se repone al día siguiente.
+- **El tier gratuito de Gemini da 20 peticiones/día POR MODELO**, no por cuenta
+  (`GenerateRequestsPerDayPerProjectPerModel`). Esto bloqueó el proyecto varios días hasta
+  descubrirlo: con `gemini-3.6-flash` agotado, `gemini-flash-latest` respondía perfectamente y hay
+  más de 20 modelos disponibles con la misma clave.
+
+  `Settings.model_chain()` y `DEFAULT_FALLBACKS` implementan el cambio automático: si un modelo se
+  queda sin cuota **o sigue congestionado tras todo el backoff**, se pasa al siguiente. Un 429 por
+  minuto no cambia de modelo, porque eso sí se resuelve esperando.
+- **`claimscope doctor`** comprueba clave, modelo que responde y sandbox antes de gastar cuota. Es
+  lo primero que hay que ejecutar cuando algo falla.
 - La regla "`absolute` nunca es verificable" se aplica en código, no se confía al modelo.
 
 ### Modelo local (Ollama)

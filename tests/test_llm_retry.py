@@ -85,6 +85,35 @@ def test_retries_a_503_then_succeeds() -> None:
     assert model.runnable.calls == 2
 
 
+def test_the_backoff_is_capped(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Doubling without a cap would eventually wait longer than anyone will."""
+    from claimscope.llm import MAX_BACKOFF_S
+
+    waits: list[float] = []
+    monkeypatch.setattr("claimscope.llm.time.sleep", waits.append)
+
+    outcomes: list[object] = [RuntimeError("503 UNAVAILABLE")] * (TRANSIENT_RETRIES - 1)
+    outcomes.append(Answer(value=1))
+    llm, _ = _llm(outcomes)
+
+    llm.invoke_structured("prompt", Answer)
+
+    assert waits, "expected the run to have waited at all"
+    assert max(waits) <= MAX_BACKOFF_S
+
+
+def test_it_waits_long_enough_to_outlast_congestion() -> None:
+    """Free-tier models stay congested for minutes, not seconds."""
+    from claimscope.llm import MAX_BACKOFF_S, TRANSIENT_BACKOFF_S
+
+    total = sum(
+        min(TRANSIENT_BACKOFF_S * 2**attempt, MAX_BACKOFF_S)
+        for attempt in range(TRANSIENT_RETRIES - 1)
+    )
+
+    assert total >= 300, f"only waits {total:.0f}s in total"
+
+
 def test_gives_up_after_the_retry_budget() -> None:
     outcomes: list[object] = [RuntimeError("503 UNAVAILABLE")] * TRANSIENT_RETRIES
     llm, model = _llm(outcomes)

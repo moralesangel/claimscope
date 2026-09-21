@@ -18,6 +18,14 @@ DEFAULT_MODELS: dict[Provider, str] = {
     "ollama": "qwen3:4b",
 }
 
+# Tried in order when the current model runs out of daily quota. Google counts
+# its free tier per model, so each of these carries its own allowance.
+DEFAULT_FALLBACKS: dict[Provider, tuple[str, ...]] = {
+    "anthropic": (),
+    "google": ("gemini-flash-latest", "gemini-3.5-flash", "gemini-flash-lite-latest"),
+    "ollama": (),
+}
+
 
 class Settings(BaseSettings):
     """Runtime configuration. Never hardcode secrets; they come from the environment."""
@@ -45,6 +53,14 @@ class Settings(BaseSettings):
             self.model_name = DEFAULT_MODELS[self.provider]
         return self
 
+    model_fallbacks: list[str] = []
+    """Models to try when the primary one exhausts its daily quota.
+
+    Google's free tier counts requests per model, not per account, so a second
+    model is a fresh allowance rather than a workaround. Empty means the
+    provider's default chain.
+    """
+
     ollama_base_url: str = "http://localhost:11434"
     """Where the local Ollama server listens."""
 
@@ -69,6 +85,12 @@ class Settings(BaseSettings):
     def needs_api_key(self) -> bool:
         """Whether the selected provider authenticates at all."""
         return self.provider in {"anthropic", "google"}
+
+    def model_chain(self) -> list[str]:
+        """The primary model followed by its fallbacks, without duplicates."""
+        configured = self.model_fallbacks or list(DEFAULT_FALLBACKS[self.provider])
+        chain = [self.model_name, *configured]
+        return list(dict.fromkeys(chain))
 
     runs_dir: Path = Path("runs")
 

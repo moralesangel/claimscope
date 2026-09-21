@@ -8,11 +8,12 @@ from typing import Any
 import typer
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
+from pydantic import BaseModel
 from rich.console import Console
 from rich.table import Table
 
 from claimscope import __version__
-from claimscope.config import get_settings
+from claimscope.config import Settings, get_settings
 from claimscope.review_ui import NoReviewerError, collect_decisions
 from claimscope.session import (
     checkpoint_path,
@@ -47,6 +48,81 @@ def config() -> None:
         dumped[key_field] = "set" if dumped.get(key_field) else "unset"
     for key, value in dumped.items():
         console.print(f"{key}: {value}")
+
+
+@app.command()
+def doctor() -> None:
+    """Check that everything a run needs is in place, before spending any quota."""
+    settings = get_settings()
+    problems: list[str] = []
+
+    def report(ok: bool, label: str, detail: str = "") -> None:
+        mark = "[green]ok[/green]  " if ok else "[red]fail[/red]"
+        console.print(f"{mark} {label}" + (f"  [dim]{detail}[/dim]" if detail else ""))
+
+    console.print(f"[bold]Provider:[/bold] {settings.provider}\n")
+
+    # 1. Credentials.
+    if settings.needs_api_key and not settings.active_api_key:
+        report(
+            False,
+            "API key",
+            f"set {'ANTHROPIC' if settings.provider == 'anthropic' else 'GEMINI'}_API_KEY in .env",
+        )
+        problems.append("no API key")
+    else:
+        report(True, "API key", "not needed" if not settings.needs_api_key else "set")
+
+    # 2. A model that will actually answer. Cheap, but not free, so it is the
+    # one place doctor spends anything.
+    chain = settings.model_chain()
+    console.print(f"[dim]model chain: {' -> '.join(chain)}[/dim]")
+    if settings.needs_api_key and settings.active_api_key:
+        working = _first_working_model(settings)
+        if working:
+            report(True, "model responds", working)
+        else:
+            report(False, "model responds", "every model in the chain refused")
+            problems.append("no usable model")
+
+    # 3. Somewhere to run the experiments.
+    from claimscope.sandbox.runner import build_runner, is_contained
+
+    runner = build_runner(settings)
+    if runner.available():
+        detail = (
+            "contained" if is_contained(settings) else "NOT contained -- results carry a caveat"
+        )
+        report(True, f"sandbox ({settings.sandbox_backend})", detail)
+    else:
+        report(False, f"sandbox ({settings.sandbox_backend})", "unavailable; is Docker running?")
+        problems.append("no sandbox")
+
+    console.print()
+    if problems:
+        console.print(f"[red]Not ready:[/red] {', '.join(problems)}")
+        raise typer.Exit(1)
+    console.print("[green]Ready.[/green] Try: claimscope analyze 1207.0580")
+
+
+def _first_working_model(settings: Settings) -> str | None:
+    """The first model in the chain that answers, or None if none do."""
+    from claimscope.llm import ProviderStructuredLLM
+
+    class Ping(BaseModel):
+        ok: bool
+
+    for model in settings.model_chain():
+        try:
+            # One model at a time, so a chain-wide fallback does not mask which
+            # one answered, and no backoff, so doctor stays quick.
+            probe = settings.model_copy(update={"model_name": model, "model_fallbacks": [model]})
+            ProviderStructuredLLM(probe).invoke_structured("Reply with ok set to true.", Ping)
+        except Exception as exc:
+            console.print(f"[dim]  {model}: {str(exc)[:70]}[/dim]")
+            continue
+        return model
+    return None
 
 
 def _report_failure(exc: Exception, verbose: bool) -> None:

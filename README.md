@@ -60,6 +60,10 @@ ClaimScope funciona con Anthropic, Google Gemini o un modelo local vía Ollama. 
 `CLAIMSCOPE_PROVIDER=anthropic|google|ollama` y rellena la clave correspondiente (ollama no
 necesita ninguna).
 
+**Sobre la cuota gratuita de Gemini:** son 20 peticiones al día **por modelo**, no por cuenta. Si un
+modelo se agota, ClaimScope cambia solo al siguiente de la lista, así que en la práctica tienes
+varias veces esa cifra. `doctor` te dice cuál está respondiendo ahora mismo.
+
 **Sobre el modelo local:** sirve para comprobar que el pipeline funciona sin gastar cuota, pero no
 para juzgar la calidad del agente. Probado con Qwen3 4B en un portátil sin GPU: tarda minutos por
 llamada, no rellena los brazos de las comparaciones y su triage deja pasar afirmaciones que no son
@@ -68,6 +72,9 @@ verificables. Para resultados en los que confiar, usa un modelo alojado.
 ## Uso
 
 ```bash
+# Comprobar que todo está listo antes de gastar cuota.
+uv run python -m claimscope.cli doctor
+
 # Analizar un paper.
 uv run python -m claimscope.cli analyze 1706.03762
 
