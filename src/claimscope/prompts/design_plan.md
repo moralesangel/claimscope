@@ -56,6 +56,11 @@ represent, generate synthetic data in the script. Everything else in `sklearn.da
 `fetch_*` that downloads, and every famous benchmark -- MNIST, CIFAR-10, RCV1, 20 Newsgroups --
 is one of those, so none of them can be used here.
 
+**The only packages installed are: {packages}.** There is no PyTorch, TensorFlow, JAX or Keras,
+and nothing can be installed, so a plan that assumes a deep learning framework fails on the first
+import. Anything beyond what these provide has to be written by hand in numpy -- which is fine for
+a small MLP or a small convnet, and is a reason to keep the architecture modest.
+
 Name the substitute **in `reduced_setup`, explicitly**, e.g. "sklearn's 8x8 digits (1797 images)
 standing in for MNIST", and record it in `changes` with its justification. The report prints both,
 so a reader sees what the paper used and what actually ran. A substitution stated in the plan is a

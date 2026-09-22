@@ -66,15 +66,22 @@ _DIAGNOSTIC = re.compile(r"train_(?:error|loss)=([0-9.eE+-]+)\s+test_(?:error|lo
 _NEGLIGIBLE_GAP = 0.02
 """Below this train/test gap the baseline is not overfitting in any useful sense."""
 
+_FAILED_TO_FIT = 0.5
+"""Above this training error the baseline never learned its own training set.
 
-def _regime_note(control: list[RunResult]) -> str | None:
-    """Whether the baseline arm shows the overfitting a regulariser needs.
+A hand-written convnet came out at 80% training error on a 10-class task, which
+is near chance. Comparing a regulariser against a model that did not train is
+not a weak measurement, it is no measurement.
+"""
 
-    Scripts print a `diagnostic: train_error=... test_error=...` line. Without
-    it there is nothing to say, so this stays quiet rather than guessing: an
-    absent diagnostic is not evidence either way.
+
+def _control_diagnostics(control: list[RunResult]) -> list[tuple[float, float]]:
+    """The (train, test) pairs the baseline arm's scripts printed.
+
+    Scripts print a `diagnostic: train_error=... test_error=...` line. An absent
+    diagnostic yields nothing, so the caller stays quiet rather than guessing.
     """
-    gaps: list[float] = []
+    pairs: list[tuple[float, float]] = []
     for run in control:
         try:
             text = Path(run.log_path).read_text(encoding="utf-8")
@@ -82,22 +89,40 @@ def _regime_note(control: list[RunResult]) -> str | None:
             continue
         if match := _DIAGNOSTIC.search(text):
             try:
-                gaps.append(float(match.group(2)) - float(match.group(1)))
+                pairs.append((float(match.group(1)), float(match.group(2))))
             except ValueError:
                 continue
+    return pairs
 
-    if not gaps:
+
+def _regime_note(control: list[RunResult]) -> str | None:
+    """Whether the baseline arm was in a regime where the effect could appear.
+
+    Two ways it is not, and they look identical in the verdict: the task is too
+    easy, so there is no overfitting to reduce; or the model never fit its own
+    training data, so the arms differ by noise between two broken runs.
+    """
+    pairs = _control_diagnostics(control)
+    if not pairs:
         return None
 
-    mean_gap = sum(gaps) / len(gaps)
-    if mean_gap >= _NEGLIGIBLE_GAP:
-        return None
+    mean_train = sum(train for train, _ in pairs) / len(pairs)
+    if mean_train >= _FAILED_TO_FIT:
+        return (
+            f"The baseline arm never fit its own training data (training error "
+            f"{mean_train:.3f}), so this comparison is between two models that did not "
+            "learn. The experiment needs redesigning, not more seeds."
+        )
 
-    return (
-        f"The baseline arm barely overfits (train/test gap {mean_gap:.3f}), so the reduced "
-        "task may be too easy for this effect to appear at all. Treat this as a limit of the "
-        "reduction rather than evidence about the claim."
-    )
+    mean_gap = sum(test - train for train, test in pairs) / len(pairs)
+    if mean_gap < _NEGLIGIBLE_GAP:
+        return (
+            f"The baseline arm barely overfits (train/test gap {mean_gap:.3f}), so the reduced "
+            "task may be too easy for this effect to appear at all. Treat this as a limit of the "
+            "reduction rather than evidence about the claim."
+        )
+
+    return None
 
 
 def _inconclusive(claim_id: str, reason: str) -> ClaimVerdict:

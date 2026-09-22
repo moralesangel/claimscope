@@ -9,6 +9,7 @@ from pathlib import Path
 from claimscope.config import Settings, get_settings
 from claimscope.integrity import OFFLINE_DATASETS
 from claimscope.llm import ProviderStructuredLLM, StructuredLLM
+from claimscope.nodes.codegen import SANDBOX_PACKAGES
 from claimscope.prompts import load_prompt
 from claimscope.schemas import Claim, ReductionPlan
 from claimscope.state import GraphState
@@ -58,6 +59,7 @@ def _plan_one(
         code_context=_code_context(state.get("repo_url")),
         budget_minutes=settings.budget_minutes_total,
         offline_datasets=_offline_datasets(),
+        packages=", ".join(SANDBOX_PACKAGES),
         seeds=settings.seeds_per_arm,
         feedback_section=_FEEDBACK_TEMPLATE.format(feedback=feedback) if feedback else "",
     )

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from claimscope.config import Settings
-from claimscope.nodes.analyze import analyze, metric_direction
+from claimscope.nodes.analyze import _regime_note, analyze, metric_direction
 from claimscope.schemas import Claim, RunResult
 from claimscope.state import GraphState
 
@@ -218,3 +220,62 @@ def test_every_claim_receives_a_verdict(settings: Settings) -> None:
     verdicts = analyze(state, settings)["verdicts"]
 
     assert {v.claim_id for v in verdicts} == {"c1", "c2", "c3"}
+
+
+class TestRegimeNote:
+    """An inconclusive verdict hides two very different failures.
+
+    The effect may be absent, or the experiment may never have been in a regime
+    where it could appear. The interval looks the same either way, so the
+    scripts' train/test diagnostic is what separates them.
+    """
+
+    def _run(self, tmp_path: Path, arm: str, seed: int, train: float, test: float) -> RunResult:
+        log = tmp_path / f"log_{arm}_{seed}.txt"
+        log.write_text(f"diagnostic: train_error={train} test_error={test}\n", encoding="utf-8")
+        return RunResult(arm=arm, seed=seed, metric_value=test, runtime_s=1.0, log_path=str(log))
+
+    def test_a_baseline_that_never_learned_is_called_out(self, tmp_path: Path) -> None:
+        control = [self._run(tmp_path, "control", i, 0.81, 0.85) for i in range(3)]
+
+        note = _regime_note(control)
+
+        assert note is not None
+        assert "never fit its own training data" in note
+
+    def test_a_task_too_easy_is_called_out(self, tmp_path: Path) -> None:
+        control = [self._run(tmp_path, "control", i, 0.045, 0.048) for i in range(3)]
+
+        note = _regime_note(control)
+
+        assert note is not None
+        assert "barely overfits" in note
+
+    def test_a_healthy_overfitting_baseline_says_nothing(self, tmp_path: Path) -> None:
+        """Train 0.2%, test 3.8%: exactly the regime a regulariser needs."""
+        control = [self._run(tmp_path, "control", i, 0.002, 0.038) for i in range(3)]
+
+        assert _regime_note(control) is None
+
+    def test_no_diagnostic_says_nothing(self, tmp_path: Path) -> None:
+        """An absent diagnostic is not evidence either way."""
+        log = tmp_path / "log_plain.txt"
+        log.write_text("nothing useful here\n", encoding="utf-8")
+        control = [
+            RunResult(arm="control", seed=0, metric_value=0.1, runtime_s=1.0, log_path=str(log))
+        ]
+
+        assert _regime_note(control) is None
+
+    def test_a_missing_log_does_not_raise(self, tmp_path: Path) -> None:
+        control = [
+            RunResult(
+                arm="control",
+                seed=0,
+                metric_value=0.1,
+                runtime_s=1.0,
+                log_path=str(tmp_path / "gone.txt"),
+            )
+        ]
+
+        assert _regime_note(control) is None
