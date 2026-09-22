@@ -198,3 +198,74 @@ class TestSwitching:
 
         assert llm.invoke_structured("prompt", Answer).value == 5
         assert llm.used == ["a"]  # type: ignore[attr-defined]
+
+
+class TestNoPingPong:
+    """The chain must be walked once, not cycled.
+
+    model_chain() puts the current model first, so re-deriving it after a switch
+    reorders the list and each model becomes the other's next entry. A real run
+    spent fifteen switches alternating between two congested models before
+    producing a single script.
+    """
+
+    def test_congestion_on_every_model_gives_up(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Uses the real default chain, where the cycle actually appears.
+
+        With an explicit model_fallbacks the chain happens to stay put. The bug
+        needs DEFAULT_FALLBACKS, where model_chain() prepends whichever model is
+        current and so rotates the list under each switch.
+        """
+        monkeypatch.setattr("claimscope.llm.time.sleep", lambda _s: None)
+        settings = Settings(provider="google", gemini_api_key="k")
+        chain = settings.model_chain()
+        assert len(chain) > 1, "this test needs a real fallback chain"
+        llm = _llm_over(
+            {name: RuntimeError("503 UNAVAILABLE high demand") for name in chain}, settings
+        )
+
+        with pytest.raises(RuntimeError, match="UNAVAILABLE"):
+            llm.invoke_structured("prompt", Answer)
+
+        # Every model is asked once. A repeat means the chain is being cycled.
+        used: list[str] = llm.used  # type: ignore[attr-defined]
+        assert used == chain, f"expected one pass over {chain}, got {used}"
+
+    def test_congestion_does_not_disqualify_a_model_for_later_calls(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A 503 clears in minutes, so the model is skipped, not retired."""
+        monkeypatch.setattr("claimscope.llm.time.sleep", lambda _s: None)
+        settings = Settings(
+            provider="google", gemini_api_key="k", model_name="a", model_fallbacks=["b"]
+        )
+        outcomes: dict[str, object] = {
+            "a": RuntimeError("503 UNAVAILABLE high demand"),
+            "b": Answer(value=1),
+        }
+        llm = _llm_over(outcomes, settings)
+
+        assert llm.invoke_structured("prompt", Answer).value == 1
+
+        # The congestion clears; the preferred model must be reachable again.
+        outcomes["a"] = Answer(value=2)
+        llm._settings = llm._settings.model_copy(update={"model_name": "a"})
+        assert llm.invoke_structured("prompt", Answer).value == 2
+
+    def test_an_exhausted_model_is_retired_for_the_whole_process(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A spent daily allowance never clears, so never spend a call rediscovering it."""
+        monkeypatch.setattr("claimscope.llm.time.sleep", lambda _s: None)
+        settings = Settings(
+            provider="google", gemini_api_key="k", model_name="a", model_fallbacks=["b"]
+        )
+        llm = _llm_over(
+            {"a": RuntimeError(DAILY_QUOTA_ERROR), "b": Answer(value=4)},
+            settings,
+        )
+
+        assert llm.invoke_structured("prompt", Answer).value == 4
+        assert llm.invoke_structured("prompt", Answer).value == 4
+        # "a" is asked once, on the first call only.
+        assert llm.used == ["a", "b", "b"]  # type: ignore[attr-defined]

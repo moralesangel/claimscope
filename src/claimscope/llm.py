@@ -99,6 +99,17 @@ class ProviderStructuredLLM:
     ) -> None:
         self._settings = settings or get_settings()
         self._model = model
+        self._chain = self._settings.model_chain()
+        """The fallback order, fixed at construction.
+
+        It must not be recomputed after a switch: model_chain() puts the current
+        model first, so re-deriving it once model_name has changed reorders the
+        list and each model ends up pointing back at the one before it.
+        """
+        self._retired: set[str] = set()
+        """Models whose daily allowance is spent. Never tried again this process."""
+        self._skipped: set[str] = set()
+        """Models congested during the current call. Cleared on the next one."""
 
     def _get_model(self) -> BaseChatModel:
         if self._model is not None:
@@ -185,6 +196,12 @@ class ProviderStructuredLLM:
         Google counts its free tier per model, so an exhausted daily allowance
         is not the end of the run: the next model in the chain has its own.
         """
+        # Congestion skips last for this call only; retirements outlive it.
+        self._skipped = set()
+        if self._settings.model_name in self._retired and not self._advance_model(retire=True):
+            raise RuntimeError(
+                "every model in the chain has spent its quota: " + ", ".join(self._chain)
+            )
         while True:
             try:
                 return self._invoke_one_model(prompt, schema)
@@ -193,24 +210,39 @@ class ProviderStructuredLLM:
                 # Quota exhaustion is the obvious case, but a model that stays
                 # congested through the whole backoff is equally unusable, and
                 # another model is often serving fine at that moment.
-                recoverable = _is_quota_exhausted(message) or _is_transient(message)
-                if not recoverable or not self._advance_model():
+                exhausted = _is_quota_exhausted(message)
+                if not (exhausted or _is_transient(message)):
+                    raise
+                if not self._advance_model(retire=exhausted):
                     raise
 
-    def _advance_model(self) -> bool:
-        """Switch to the next model in the chain. False when there is none left."""
-        chain = self._settings.model_chain()
-        try:
-            position = chain.index(self._settings.model_name)
-        except ValueError:
+    def _advance_model(self, retire: bool) -> bool:
+        """Switch to the next model not yet tried for this call. False when none is left.
+
+        Two failures look alike here and must not be treated alike. A spent
+        daily allowance never comes back, so that model is retired for the rest
+        of the process. Congestion clears in minutes, so the model is only
+        skipped for the remainder of this call and is available again on the
+        next one.
+
+        The skip is what stops the ping-pong: model_chain() lists the current
+        model first, so walking it by position after a switch makes each model
+        point back at the one before it, and the pair alternates forever.
+        """
+        current = self._settings.model_name
+        if retire:
+            self._retired.add(current)
+        self._skipped.add(current)
+
+        blocked = self._retired | self._skipped
+        nxt = next((name for name in self._chain if name not in blocked), None)
+        if nxt is None:
+            logger.error(
+                "no model in the chain could serve the request: %s", ", ".join(self._chain)
+            )
             return False
 
-        if position + 1 >= len(chain):
-            logger.error("no model in the chain could serve the request: %s", ", ".join(chain))
-            return False
-
-        nxt = chain[position + 1]
-        logger.warning("%s is unusable right now; switching to %s", self._settings.model_name, nxt)
+        logger.warning("%s is unusable right now; switching to %s", current, nxt)
         self._settings = self._settings.model_copy(update={"model_name": nxt})
         self._model = None  # rebuilt lazily against the new model
         return True
