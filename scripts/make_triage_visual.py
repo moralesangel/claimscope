@@ -225,14 +225,23 @@ def build(run_dir: Path) -> str:
         )
 
     paper_id = run_dir.name
+    # The headline states the split, so it cannot contradict the counts beneath
+    # it: "most claims cannot be tested" is wrong on a run that kept three of five.
+    if len(refused) > len(kept):
+        headline = "Most claims in this paper cannot be tested cheaply. The agent says which."
+    elif refused:
+        headline = f"{len(refused)} of these {total} claims are not worth testing cheaply."
+    else:
+        headline = "Every claim in this paper survived triage."
+    plural = "claim" if len(refused) == 1 else "claims"
     return f"""{TEMPLATE_HEAD}
 <div class="page">
   <p class="eyebrow">arXiv {html.escape(paper_id)}</p>
-  <h1>Most claims in a paper cannot be tested cheaply. The agent says which.</h1>
+  <h1>{headline}</h1>
   <p class="standfirst">
     ClaimScope read the paper and extracted {total} empirical claims. Deciding which
-    {len(refused)} to leave alone is most of the work &mdash; and refusing one is a correct
-    answer, not a failure.
+    {len(refused)} {plural} to leave alone is most of the work &mdash; and refusing one is a
+    correct answer, not a failure.
   </p>
 
   <div class="tally">
