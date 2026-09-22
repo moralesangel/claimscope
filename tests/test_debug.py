@@ -213,3 +213,57 @@ class TestDebugIntegrityWarnings:
         result = debug(_state(settings), settings, llm)
 
         assert result.get("errors", []) == []
+
+
+class TestUnfixablePlan:
+    """Some failures no patch can reach.
+
+    A dataset that needs the network cannot be obtained by rewriting the script,
+    and substituting another is forbidden. Without a way to say so, the model
+    returns a patch anyway and the three attempts get spent on incidental
+    errors while the real cause never reaches the report.
+    """
+
+    def test_it_abandons_without_retrying(self, settings: Settings) -> None:
+        llm = StubLLM(
+            [
+                CodePatch(
+                    diagnosis="RCV1 needs a download and the sandbox has no network.",
+                    code=BROKEN,
+                    unfixable=True,
+                )
+            ]
+        )
+
+        result = debug(_state(settings), settings, llm)
+
+        assert "c1" in result["abandoned_claim_ids"]
+        assert result["execution_failures"] == {}
+
+    def test_the_reason_names_the_plan(self, settings: Settings) -> None:
+        """ "Gave up after 3 attempts" would point at the code, which is not the fault."""
+        llm = StubLLM([CodePatch(diagnosis="RCV1 needs a download.", code=BROKEN, unfixable=True)])
+
+        result = debug(_state(settings), settings, llm)
+
+        reason = result["abandoned_claim_ids"]["c1"]
+        assert "plan cannot be carried out" in reason
+        assert "RCV1" in reason
+
+    def test_it_does_not_count_an_attempt(self, settings: Settings) -> None:
+        """The budget is for fixable bugs; this one was not one."""
+        llm = StubLLM(
+            [CodePatch(diagnosis="No network for this dataset.", code=BROKEN, unfixable=True)]
+        )
+
+        result = debug(_state(settings), settings, llm)
+
+        assert result["debug_attempts"].get("c1", 0) == 0
+
+    def test_an_ordinary_patch_still_retries(self, settings: Settings) -> None:
+        llm = StubLLM([CodePatch(diagnosis="Wrong shape.", code=FIXED)])
+
+        result = debug(_state(settings), settings, llm)
+
+        assert result["abandoned_claim_ids"] == {}
+        assert result["debug_attempts"] == {"c1": 1}

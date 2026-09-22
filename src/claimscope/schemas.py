@@ -122,6 +122,19 @@ class CodePatch(BaseModel):
 
     diagnosis: str = Field(description="What went wrong, in one or two sentences.")
     code: str = Field(description="The full corrected run.py.")
+    unfixable: bool = Field(
+        default=False,
+        description=(
+            "True when no patch can help because the plan itself is impossible, "
+            "for instance when it names a dataset the sandbox cannot obtain."
+        ),
+    )
+    """Whether the failure is in the plan rather than the code.
+
+    A dataset that needs the network cannot be reached by any rewriting of the
+    script, and the prompt forbids substituting another one. Without this flag
+    the model has to return a patch anyway, and the three attempts get spent on
+    incidental errors while the real cause never reaches the report."""
 
     _strip = field_validator("code")(staticmethod(strip_markdown_fences))
 

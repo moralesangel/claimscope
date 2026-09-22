@@ -49,3 +49,9 @@ Outcome: {failure_summary}
 
 - `diagnosis`: what went wrong, in one or two sentences.
 - `code`: the complete corrected script. Not a diff, and no markdown fences.
+- `unfixable`: `true` when no rewriting of this script can work, because the plan itself asks for
+  something impossible here -- most often a dataset that needs the network. Say why in `diagnosis`
+  and return the script unchanged. Do not set it for an ordinary bug you can fix, and do not set it
+  merely because the fix is awkward. Setting it stops the retries and reports the claim as blocked
+  by its plan, which is accurate and cheap; not setting it spends the remaining attempts on
+  incidental errors while the real cause never reaches the report.

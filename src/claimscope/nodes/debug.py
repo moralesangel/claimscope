@@ -93,6 +93,17 @@ def debug(
             llm=llm,
         )
 
+        if patch.unfixable:
+            # No rewriting reaches a dataset the sandbox cannot download, and
+            # substituting one is forbidden. Retrying would spend the remaining
+            # attempts on incidental errors and bury the real cause.
+            reason = f"The plan cannot be carried out here: {patch.diagnosis}"
+            logger.info("abandoning %s: %s", claim_id, reason)
+            abandoned[claim_id] = reason
+            errors.append(f"{claim_id}: {reason}")
+            failures.pop(claim_id)
+            continue
+
         # The patch rewrites the whole script, so it can reintroduce exactly
         # what codegen was told to avoid: a stand-in dataset, or label noise
         # on real data. The failure being fixed is usually "cannot download

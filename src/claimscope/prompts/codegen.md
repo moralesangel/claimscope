@@ -96,6 +96,12 @@ pad, reshape or relabel one dataset to impersonate another.
   one run must finish in roughly {per_run_seconds:.0f} seconds. Prefer small models and few epochs.
 - The metric must be a single float where the claim's expected direction is meaningful.
 - **Print the metric to stdout** as well as writing it, so a failed run is diagnosable from the log.
+- **Also print the training-set score next to the test score**, on its own line, e.g.
+  `diagnostic: train_error=0.004 test_error=0.048`. It does not go in `result.json` -- the metric
+  stays a single float -- but without it nobody can tell an experiment that measured no effect from
+  one that was never in a regime where the effect exists. For a claim about a regulariser, a
+  baseline arm with almost no gap between the two means the task was too easy and the comparison
+  could not have shown anything.
 
 ## Output
 

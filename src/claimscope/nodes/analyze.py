@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from pathlib import Path
 
 from claimscope.config import Settings, get_settings
 from claimscope.nodes.codegen import arms_for
@@ -57,6 +58,45 @@ def _untestable_verdict(claim: Claim) -> ClaimVerdict:
         claim_id=claim.id,
         verdict="not_testable",
         notes=claim.triage_reason or "Triage judged this claim not testable at reduced scale.",
+    )
+
+
+_DIAGNOSTIC = re.compile(r"train_(?:error|loss)=([0-9.eE+-]+)\s+test_(?:error|loss)=([0-9.eE+-]+)")
+
+_NEGLIGIBLE_GAP = 0.02
+"""Below this train/test gap the baseline is not overfitting in any useful sense."""
+
+
+def _regime_note(control: list[RunResult]) -> str | None:
+    """Whether the baseline arm shows the overfitting a regulariser needs.
+
+    Scripts print a `diagnostic: train_error=... test_error=...` line. Without
+    it there is nothing to say, so this stays quiet rather than guessing: an
+    absent diagnostic is not evidence either way.
+    """
+    gaps: list[float] = []
+    for run in control:
+        try:
+            text = Path(run.log_path).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if match := _DIAGNOSTIC.search(text):
+            try:
+                gaps.append(float(match.group(2)) - float(match.group(1)))
+            except ValueError:
+                continue
+
+    if not gaps:
+        return None
+
+    mean_gap = sum(gaps) / len(gaps)
+    if mean_gap >= _NEGLIGIBLE_GAP:
+        return None
+
+    return (
+        f"The baseline arm barely overfits (train/test gap {mean_gap:.3f}), so the reduced "
+        "task may be too easy for this effect to appear at all. Treat this as a limit of the "
+        "reduction rather than evidence about the claim."
     )
 
 
@@ -164,6 +204,15 @@ def _verdict_for(claim: Claim, results: list[RunResult]) -> ClaimVerdict:
     except InsufficientDataError as exc:
         return _inconclusive(claim.id, str(exc))
 
+    notes = comparison.notes()
+    # An inconclusive result has two very different causes, and the reader
+    # cannot tell them apart from the interval alone: the effect may be absent,
+    # or the reduced task may never have been in a regime where it could appear.
+    if comparison.verdict == "inconclusive":
+        control_runs = [run for run in results if run.arm == control_name]
+        if regime := _regime_note(control_runs):
+            notes = f"{notes} {regime}"
+
     return ClaimVerdict(
         claim_id=claim.id,
         verdict=comparison.verdict,
@@ -171,5 +220,5 @@ def _verdict_for(claim: Claim, results: list[RunResult]) -> ClaimVerdict:
         ci_low=comparison.ci_low,
         ci_high=comparison.ci_high,
         p_value=comparison.p_value,
-        notes=comparison.notes(),
+        notes=notes,
     )
