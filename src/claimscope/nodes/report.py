@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from claimscope.config import Settings, get_settings
+from claimscope.integrity import MARKER as INTEGRITY_MARKER
 from claimscope.schemas import Claim, ClaimVerdict, ReductionPlan, RunResult
 from claimscope.state import GraphState
 
@@ -84,6 +85,18 @@ def _results_table(results: list[RunResult]) -> str:
     return "\n".join(lines)
 
 
+def _is_integrity_warning(error: str) -> bool:
+    """Whether this error says the script departed from its plan.
+
+    These are worth more prominence than the rest of the errors list: a repo
+    that failed to clone costs a claim, while a substituted dataset silently
+    changes what the number underneath the verdict means. Matched on the marker
+    integrity.py stamps, not on the wording, so rewording a warning cannot
+    quietly stop it being shown.
+    """
+    return error.startswith(INTEGRITY_MARKER)
+
+
 def render_report(state: GraphState) -> str:
     """Build the full Markdown report from the finished state."""
     claims = state.get("claims", [])
@@ -108,6 +121,24 @@ def render_report(state: GraphState) -> str:
 
     if repo := state.get("repo_url"):
         parts += [f"Official repository: {repo}", ""]
+
+    # A verdict computed from data the plan did not name is not a weaker
+    # result, it is a different question answered. That has to reach the reader
+    # before the table, not from a list of problems underneath it.
+    if integrity := [e for e in state.get("errors", []) if _is_integrity_warning(e)]:
+        parts += [
+            "> **Read the verdicts below with care.** The generated script did not run the "
+            "experiment its plan describes:",
+            ">",
+        ]
+        parts += [f"> - {warning}" for warning in integrity]
+        parts += [
+            ">",
+            "> A verdict computed from data the plan does not name answers a different question "
+            "from the one the claim asks. Read the script in the claim's workspace before "
+            "relying on it.",
+            "",
+        ]
 
     # Summary table first: the reader wants the verdicts.
     parts += [

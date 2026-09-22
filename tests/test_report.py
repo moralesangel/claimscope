@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from claimscope.config import Settings
+from claimscope.integrity import MARKER
 from claimscope.nodes.report import REPORT_FILENAME, render_report, report
 from claimscope.schemas import Claim, ClaimVerdict, ReductionPlan, RunResult
 from claimscope.state import GraphState
@@ -201,3 +202,46 @@ class TestWriting:
 
         written = (settings.runs_dir / "1512.03385" / REPORT_FILENAME).read_text(encoding="utf-8")
         assert written.startswith("# ClaimScope report: Deep Residual Learning")
+
+
+class TestIntegrityBanner:
+    """A misreported dataset must reach the reader before the verdicts.
+
+    Under "Problems encountered" it sits beside a repo that failed to clone.
+    But a verdict computed from data the plan does not name answers a different
+    question, which the reader has to know before reading the number.
+    """
+
+    def _warning(self, claim_id: str = "c1") -> str:
+        return (
+            f"{MARKER} -- {claim_id}: the plan names mnist but the script trains on "
+            "load_digits() -- the reported dataset is not the one used"
+        )
+
+    def test_the_warning_appears_above_the_verdicts_table(self) -> None:
+        markdown = render_report(_state(errors=[self._warning()]))
+
+        assert markdown.index("load_digits()") < markdown.index("## Verdicts")
+
+    def test_it_tells_the_reader_what_to_do(self) -> None:
+        markdown = render_report(_state(errors=[self._warning()]))
+
+        assert "Read the verdicts below with care" in markdown
+        assert "workspace" in markdown
+
+    def test_an_ordinary_error_does_not_raise_the_banner(self) -> None:
+        """A repo that would not clone costs a claim; it does not invalidate one."""
+        markdown = render_report(
+            _state(errors=["c1: could not use the official repo (timeout); writing from scratch"])
+        )
+
+        assert "Read the verdicts below with care" not in markdown
+
+    def test_a_clean_run_has_no_banner(self) -> None:
+        assert "Read the verdicts below with care" not in render_report(_state())
+
+    def test_every_warning_is_listed(self) -> None:
+        markdown = render_report(_state(errors=[self._warning("c1"), self._warning("c2")]))
+
+        assert "c1:" in markdown
+        assert "c2:" in markdown

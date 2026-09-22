@@ -23,6 +23,14 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from claimscope.schemas import ReductionPlan
 
+MARKER = "experiment integrity"
+"""Prefix every warning carries, so the report can find them without matching prose.
+
+The report gives these more prominence than the rest of the errors list, and
+coupling that to the wording would mean a reworded warning silently stops being
+shown.
+"""
+
 # Loader -> the datasets it actually provides. A script calling one of these
 # while the plan names something else is training on different data.
 _LOADERS = {
@@ -160,14 +168,14 @@ def dataset_substitutions(code: str, plan_text: str, claim_id: str) -> list[str]
         if any(any(p in name for p in provides) for name in named):
             continue
         warnings.append(
-            f"{claim_id}: the plan names {expected} but the script trains on "
+            f"{MARKER} -- {claim_id}: the plan names {expected} but the script trains on "
             f"{loader}() -- the reported dataset is not the one used"
         )
 
     for generator in _SYNTHETIC:
         if _calls(code, generator) and not _declares(plan_text, generator):
             warnings.append(
-                f"{claim_id}: the plan names {expected} but the script generates "
+                f"{MARKER} -- {claim_id}: the plan names {expected} but the script generates "
                 f"synthetic data with {generator}() -- the result says nothing about {expected}"
             )
 
@@ -196,8 +204,8 @@ def corrupted_labels(code: str, plan_text: str, claim_id: str) -> list[str]:
         return []
 
     return [
-        f"{claim_id}: the script randomises a fraction of the training labels of a real "
-        f"dataset -- this buries the effect being measured, and both arms score alike"
+        f"{MARKER} -- {claim_id}: the script randomises a fraction of the training labels "
+        f"of a real dataset -- this buries the effect being measured, and both arms score alike"
     ]
 
 

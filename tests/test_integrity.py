@@ -10,6 +10,7 @@ from __future__ import annotations
 import pytest
 
 from claimscope.integrity import (
+    MARKER,
     corrupted_labels,
     dataset_substitutions,
     integrity_warnings,
@@ -125,10 +126,27 @@ class TestCombined:
         """The report lists warnings for every claim, so each must say which."""
         code = "from sklearn.datasets import make_blobs\nX, y = make_blobs()\n"
 
-        assert all(
-            w.startswith("cifar_claim:")
-            for w in integrity_warnings(code, MNIST_PLAN, "cifar_claim")
+        warnings = integrity_warnings(code, MNIST_PLAN, "cifar_claim")
+
+        assert warnings
+        assert all("cifar_claim:" in w for w in warnings)
+
+    def test_every_warning_carries_the_marker(self) -> None:
+        """The report finds these by the marker, not by their wording.
+
+        Without it, rewording a warning would quietly stop it being shown above
+        the verdicts table, which is the whole point of raising it.
+        """
+        code = (
+            "from sklearn.datasets import load_digits\n"
+            "X, y_train = load_digits(return_X_y=True)\n"
+            "y_train[idx] = np.random.randint(0, 10, size=n)\n"
         )
+
+        warnings = integrity_warnings(code, MNIST_PLAN, "c1")
+
+        assert warnings
+        assert all(w.startswith(MARKER) for w in warnings)
 
 
 class TestDeclaredSubstitution:
