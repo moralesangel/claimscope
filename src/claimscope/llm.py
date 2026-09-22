@@ -54,6 +54,19 @@ _TRANSIENT_MARKERS = (
     "resource_exhausted",
     "internal error",
     "500",
+    # Transport-level drops. A congested endpoint often closes the connection
+    # instead of answering, which never carries an HTTP status, so matching on
+    # status codes alone lets these through as fatal. One of them killed a run
+    # in design_plan after triage had already succeeded.
+    "server disconnected",
+    "remoteprotocolerror",
+    "connection reset",
+    "connection aborted",
+    "read timed out",
+    "readtimeout",
+    "timed out",
+    "connecterror",
+    "incomplete chunked read",
 )
 
 # Conditions a short backoff will never clear: a zero quota, an exhausted daily

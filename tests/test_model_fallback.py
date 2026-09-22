@@ -13,7 +13,7 @@ import pytest
 from pydantic import BaseModel
 
 from claimscope.config import DEFAULT_FALLBACKS, Settings
-from claimscope.llm import ProviderStructuredLLM, _is_quota_exhausted
+from claimscope.llm import ProviderStructuredLLM, _is_quota_exhausted, _is_transient
 
 DAILY_QUOTA_ERROR = (
     "429 RESOURCE_EXHAUSTED quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier"
@@ -71,6 +71,63 @@ class TestQuotaDetection:
 
     def test_congestion_is_not_exhaustion(self) -> None:
         assert not _is_quota_exhausted("503 UNAVAILABLE high demand")
+
+
+class TestTransportFailures:
+    """A dropped connection is transient, even without an HTTP status.
+
+    A congested endpoint often closes the socket instead of answering. Matching
+    only on status codes made these fatal, and one killed a real run in
+    design_plan after triage had already succeeded.
+    """
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            "RemoteProtocolError: Server disconnected without sending a response.",
+            "ConnectionResetError: [WinError 10054] Connection reset by peer",
+            "httpx.ReadTimeout: The read operation timed out",
+            "httpx.ConnectError: [Errno 111] Connection refused",
+        ],
+    )
+    def test_transport_drops_are_transient(self, message: str) -> None:
+        assert _is_transient(message)
+
+    def test_a_dropped_connection_is_not_quota_exhaustion(self) -> None:
+        """It must retry the same model, not spend a slot in the chain."""
+        assert not _is_quota_exhausted(
+            "RemoteProtocolError: Server disconnected without sending a response."
+        )
+
+    def test_an_auth_failure_is_still_fatal(self) -> None:
+        assert not _is_transient("401 authentication_error: invalid x-api-key")
+
+    def test_a_dropped_connection_retries_before_switching(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The drop is the network's fault, not the model's."""
+        monkeypatch.setattr("claimscope.llm.time.sleep", lambda _s: None)
+        settings = Settings(
+            provider="google", gemini_api_key="k", model_name="a", model_fallbacks=["b"]
+        )
+        attempts: list[str] = []
+
+        class Flaky:
+            def with_structured_output(self, _schema: type[BaseModel]) -> Flaky:
+                return self
+
+            def invoke(self, _prompt: str) -> object:
+                attempts.append("a")
+                if len(attempts) < 3:
+                    raise RuntimeError("Server disconnected without sending a response.")
+                return Answer(value=11)
+
+        llm = ProviderStructuredLLM(settings)
+        llm._get_model = Flaky  # type: ignore[method-assign,assignment]
+
+        assert llm.invoke_structured("prompt", Answer).value == 11
+        # Recovered on the original model; the fallback was never needed.
+        assert llm._settings.model_name == "a"
 
 
 class TestChain:
