@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 
 from claimscope.config import Settings, get_settings
+from claimscope.integrity import OFFLINE_DATASETS
 from claimscope.llm import ProviderStructuredLLM, StructuredLLM
 from claimscope.prompts import load_prompt
 from claimscope.schemas import Claim, ReductionPlan
@@ -23,6 +24,11 @@ A human reviewer rejected your last plan for this claim with this feedback:
 
 Address it directly in the new plan.
 """
+
+
+def _offline_datasets() -> str:
+    """The datasets the sandbox can load, as a bullet list for the prompt."""
+    return "\n".join(f"- `{name}` -- {shape}" for name, shape in OFFLINE_DATASETS)
 
 
 def _code_context(repo_url: str | None) -> str:
@@ -51,6 +57,7 @@ def _plan_one(
         claim=json.dumps(claim.model_dump(mode="json"), indent=2, ensure_ascii=False),
         code_context=_code_context(state.get("repo_url")),
         budget_minutes=settings.budget_minutes_total,
+        offline_datasets=_offline_datasets(),
         seeds=settings.seeds_per_arm,
         feedback_section=_FEEDBACK_TEMPLATE.format(feedback=feedback) if feedback else "",
     )

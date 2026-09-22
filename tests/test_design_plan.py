@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from claimscope.config import Settings
+from claimscope.integrity import OFFLINE_DATASETS
 from claimscope.nodes.design_plan import design_plan
 from claimscope.schemas import Claim, ReductionPlan
 from claimscope.state import GraphState
@@ -133,3 +134,38 @@ class TestInvariants:
     def test_rejects_an_unknown_code_source(self) -> None:
         with pytest.raises(ValidationError):
             ReductionPlan.model_validate({**_plan().model_dump(), "code_source": "borrowed"})
+
+
+class TestOfflineDatasets:
+    """The planner must be told what exists, not asked to remember it.
+
+    Plans kept naming RCV1 and CIFAR-10, which the sandbox cannot download,
+    because the availability list lived in the prompt text where it could drift
+    from what is actually installed.
+    """
+
+    def test_the_prompt_lists_the_available_datasets(self, settings: Settings) -> None:
+        llm = StubLLM([_plan()])
+
+        design_plan(_state(), settings, llm)
+
+        for name, _shape in OFFLINE_DATASETS:
+            assert name in llm.prompts[0]
+
+    def test_the_prompt_says_the_famous_benchmarks_are_out(self, settings: Settings) -> None:
+        llm = StubLLM([_plan()])
+
+        design_plan(_state(), settings, llm)
+
+        prompt = llm.prompts[0]
+        assert "MNIST" in prompt
+        assert "none of them can be used here" in prompt
+
+    def test_every_listed_dataset_really_loads(self) -> None:
+        """The whole point is that the list matches the installed packages."""
+        import importlib
+
+        for name, _shape in OFFLINE_DATASETS:
+            module_path, _, func = name.rpartition(".")
+            loader = getattr(importlib.import_module(module_path), func)
+            loader()  # raises if it needs the network or is not bundled

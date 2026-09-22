@@ -47,12 +47,14 @@ and every other dataset that needs fetching is **unavailable**, however standard
 one of those makes the experiment fail, or pushes whoever writes the script into quietly
 substituting something else -- and then the report names a dataset that never ran.
 
-Plan against what is actually there:
+Plan against what is actually there. These load without a network:
 
-- **`sklearn.datasets.load_digits`** -- 1797 handwritten digits, 8x8, 10 classes. Bundled with
-  scikit-learn, no download. This is the realistic stand-in for MNIST-style image claims.
-- **`load_breast_cancer`, `load_wine`, `load_iris`** -- small tabular classification sets, bundled.
-- **Synthetic data** you generate in the script, for anything the above cannot represent.
+{offline_datasets}
+
+`load_digits` is the realistic stand-in for MNIST-style image claims. For anything these cannot
+represent, generate synthetic data in the script. Everything else in `sklearn.datasets` is a
+`fetch_*` that downloads, and every famous benchmark -- MNIST, CIFAR-10, RCV1, 20 Newsgroups --
+is one of those, so none of them can be used here.
 
 Name the substitute **in `reduced_setup`, explicitly**, e.g. "sklearn's 8x8 digits (1797 images)
 standing in for MNIST", and record it in `changes` with its justification. The report prints both,

@@ -23,6 +23,21 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from claimscope.schemas import ReductionPlan
 
+OFFLINE_DATASETS = (
+    ("sklearn.datasets.load_digits", "1797 handwritten digits, 8x8, 10 classes"),
+    ("sklearn.datasets.load_breast_cancer", "569 samples, 30 features, 2 classes"),
+    ("sklearn.datasets.load_wine", "178 samples, 13 features, 3 classes"),
+    ("sklearn.datasets.load_iris", "150 samples, 4 features, 3 classes"),
+    ("sklearn.datasets.load_diabetes", "442 samples, 10 features, regression"),
+)
+"""Real datasets bundled with the sandbox packages, needing no download.
+
+The planner is given this list so it plans against what exists. Everything else
+in sklearn.datasets is a fetch_* that needs the network, and every famous
+benchmark -- MNIST, CIFAR-10, RCV1 -- is one of those. Keeping the list here
+rather than in the prompt means the prompt cannot drift from what is installed.
+"""
+
 MARKER = "experiment integrity"
 """Prefix every warning carries, so the report can find them without matching prose.
 
