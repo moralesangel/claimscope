@@ -105,8 +105,34 @@ Las particularidades de una máquina concreta van en `CLAUDE.local.md`, que git 
   veredicto `consistent_at_reduced_scale` con efecto +0.068, IC [+0.055, +0.082], Welch p=4.4e-05.
   El informe está guardado en `docs/example-report.md`.
 
-  Esto cierra la duda que quedaba: el juicio del agente es bueno y el pipeline produce resultados
-  con señal real.
+  El efecto medido es real, pero **el informe de esa ejecución dice "MNIST" y el script usó
+  `load_digits`**. Está anotado en la cabecera de `docs/example-report.md`. Ver más abajo.
+- **Integridad de los experimentos: corregida tras encontrar resultados silenciosamente falsos.**
+  Una ejecución posterior produjo un veredicto de CIFAR-10 calculado sobre los dígitos de 8x8 de
+  sklearn, uno de Reuters calculado con `make_classification`, y los tres scripts aleatorizaban el
+  25% de las etiquetas de entrenamiento. El error de MNIST salía 61% en vez de ~5%: ambos brazos
+  ajustaban etiquetas destruidas, así que ninguno podía ganar.
+
+  **La causa era que los tres prompts se contradecían.** `design_plan` pedía preferir MNIST y
+  CIFAR-10, que el sandbox no puede descargar; `codegen` prohibía sustituir; y `debug` ordenaba
+  "replace that with synthetic data" ante cualquier fallo de descarga. El planificador prometía
+  datos imposibles y el nodo `debug` -- que ve justo ese fallo -- los cambiaba en silencio.
+
+  Los tres prompts ya coinciden: el planificador conoce qué datos existen sin red y debe nombrar
+  el sustituto en `reduced_setup` (invariante 4), y `debug` ya no recomienda sustituir ni corromper
+  etiquetas. `src/claimscope/integrity.py` revisa el script generado y anota en `errors` -- que el
+  informe imprime -- toda sustitución no documentada o corrupción de etiquetas. Es orientativo, no
+  bloqueante: un falso positivo que tumbara un claim costaría más que el aviso.
+
+  **Al tocar uno de esos tres prompts, revisar los otros dos.** Cada uno es razonable por separado;
+  el fallo solo aparece al componerlos, y produce una respuesta segura y equivocada en vez de un
+  error. Y tras cualquier cambio, **leer el `run.py` generado**, no el informe: el informe imprime
+  el plan, no lo que hizo el script.
+- **Un experimento correcto puede seguir sin poder responder.** Con datos honestos, los cuatro
+  claims salieron `inconclusive`: un MLP de 2 capas sobre 1797 dígitos fáciles llega al 5% de error
+  sin sobreajustar, y el dropout no tiene nada que regularizar. El prompt del planificador pide
+  ahora conservar el régimen donde el efecto puede aparecer (para un regularizador, una brecha
+  visible entre train y test en el brazo base).
 - Pendiente, y bloqueado solo por el entorno: el sandbox Docker nunca se ha ejecutado (falta WSL2),
   y el harness de evaluación no se ha corrido sobre los 13 papers.
 
