@@ -100,7 +100,22 @@ def test_a_missing_decision_defaults_to_untestable(settings: Settings) -> None:
     result = triage(_state(claims), settings, llm)
 
     assert result["claims"][1].testable is False
-    assert "no decision" in (result["claims"][1].triage_reason or "")
+
+
+def test_a_missing_decision_is_not_reported_as_a_judgement(settings: Settings) -> None:
+    """It sits in the report beside real reasons like "ImageNet is too expensive".
+
+    Worded as a verdict, a reader takes it for one. The claim was not assessed,
+    which is a gap in the triage output and should read as one.
+    """
+    claims = [_claim("a"), _claim("forgotten")]
+    llm = StubLLM([TriageResult(decisions=[_decision("a")])])
+
+    result = triage(_state(claims), settings, llm)
+
+    reason = result["claims"][1].triage_reason or ""
+    assert "not assessed" in reason.lower()
+    assert "not a judgement" in reason.lower()
 
 
 def test_writes_triage_json(settings: Settings) -> None:

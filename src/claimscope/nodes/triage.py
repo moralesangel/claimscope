@@ -46,7 +46,11 @@ def _apply_decisions(
             decision = TriageDecision(
                 claim_id=claim.id,
                 testable=False,
-                reason="Triage returned no decision for this claim.",
+                reason=(
+                    "Not assessed: the model did not return a decision for this claim, "
+                    "so it was skipped. This is a gap in the triage output, not a "
+                    "judgement that the claim is untestable."
+                ),
             )
 
         if claim.claim_type == "absolute" and decision.testable:

@@ -64,5 +64,27 @@ If no available dataset can support the claim -- it is inherently about ImageNet
 corpus with no small analogue -- say so rather than pretending. The claim is better reported as not
 testable at reduced scale than answered with the wrong data.
 
+## The reduced setup must be a regime where the effect can appear
+
+Shrinking an experiment can remove the very conditions the claim depends on, and then the result is
+inconclusive no matter how carefully it is run. Before settling on `reduced_setup`, ask what has to
+be true for the claimed effect to exist at all, and make sure your reduction keeps it.
+
+The common case: **a regulariser only helps a model that overfits.** Dropout, weight decay, data
+augmentation and early stopping all reduce the gap between training and test error, so a small
+network that never memorises its training set leaves them nothing to do. A 2-layer MLP on 1797
+digits for 10 epochs reaches about 5% test error without overfitting, and dropout then changes
+nothing -- a real experiment that cannot answer the question. Push the setup into the regime the
+claim is about: fewer training examples, a wider or deeper network, more epochs, no early stopping.
+The signature to aim for is a visible train/test gap in the baseline arm.
+
+The same reasoning applies elsewhere. An optimiser claim needs a problem hard enough that
+optimisation matters; a scaling claim needs at least two points far enough apart to separate; an
+architecture claim needs a task the simpler architecture cannot already solve.
+
+State in `why_claim_should_transfer` what makes the reduced setup a regime where the effect can
+appear -- not only that the mechanism is scale free, but why this particular size, depth and
+training length still leave room for it to show.
+
 Prefer models that train in minutes on CPU. An experiment that does not finish is worth nothing.
 {feedback_section}

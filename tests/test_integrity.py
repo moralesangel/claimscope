@@ -160,3 +160,46 @@ class TestDeclaredSubstitution:
         plan = "Subsample MNIST to 5000 training images."
 
         assert len(dataset_substitutions(code, plan, "c1")) == 1
+
+
+class TestProseDeclaration:
+    """The planner writes prose, not function names.
+
+    It says "sklearn's 8x8 digits standing in for MNIST" at least as often as it
+    says load_digits. Matching only the function name flagged plans that had
+    documented themselves correctly -- and a warning on a correct plan teaches
+    the reader to ignore all of them.
+    """
+
+    CODE = "from sklearn.datasets import load_digits\nX, y = load_digits()\n"
+
+    def test_a_prose_declaration_is_enough(self) -> None:
+        plan = (
+            "Train a small MLP on sklearn's 8x8 digits dataset (1797 images) "
+            "standing in for MNIST, which the sandbox cannot download."
+        )
+
+        assert dataset_substitutions(self.CODE, plan, "c1") == []
+
+    def test_the_sample_count_also_declares_it(self) -> None:
+        plan = "Use the bundled 1797-image digit set in place of MNIST."
+
+        assert dataset_substitutions(self.CODE, plan, "c1") == []
+
+    def test_prose_about_a_different_dataset_does_not_excuse_it(self) -> None:
+        """Naming breast cancer does not license quietly using digits."""
+        plan = "Subsample MNIST to 5000 images; the breast cancer set is unsuitable here."
+
+        assert len(dataset_substitutions(self.CODE, plan, "c1")) == 1
+
+    def test_calling_the_task_synthetic_does_not_excuse_a_real_loader(self) -> None:
+        """Synthetic prose excuses a generator, never a stand-in dataset."""
+        plan = "Subsample MNIST; add synthetic perturbations to the inputs."
+
+        assert len(dataset_substitutions(self.CODE, plan, "c1")) == 1
+
+    def test_synthetic_prose_excuses_a_generator(self) -> None:
+        code = "X, y = make_classification(n_samples=2000)\n"
+        plan = "TIMIT is unavailable offline; use synthetic sequence data standing in for it."
+
+        assert dataset_substitutions(code, plan, "c1") == []

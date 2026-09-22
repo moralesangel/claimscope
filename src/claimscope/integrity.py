@@ -99,8 +99,23 @@ def _calls(code: str, name: str) -> bool:
     return re.search(rf"\b{re.escape(name)}\s*\(", without_comments) is not None
 
 
+# How a plan describes each stand-in in prose. The planner is asked to name its
+# substitute in reduced_setup, and it writes "sklearn's 8x8 digits dataset" at
+# least as often as it writes load_digits, so matching only the function name
+# would flag plans that documented themselves correctly.
+_PROSE = {
+    "load_digits": ("8x8 digit", "8x8 image", "sklearn digit", "scikit-learn digit", "1797"),
+    "load_breast_cancer": ("breast cancer",),
+    "load_wine": ("wine dataset",),
+    "load_iris": ("iris dataset",),
+    "load_diabetes": ("diabetes dataset",),
+}
+
+_SYNTHETIC_PROSE = ("synthetic", "generated data", "generate synthetic", "artificial data")
+
+
 def _declares(plan_text: str, name: str) -> bool:
-    """Whether the plan itself names this loader or generator.
+    """Whether the plan itself declares the stand-in this call provides.
 
     A plan may legitimately say "sklearn's 8x8 digits standing in for MNIST":
     the sandbox has no network, so a documented stand-in is the only way to test
@@ -108,8 +123,19 @@ def _declares(plan_text: str, name: str) -> bool:
     written down with its justification. What these checks are for is the
     *undocumented* swap, where the plan promises one dataset and the script
     quietly uses another.
+
+    Both spellings count, the function name and the prose, because a warning on
+    a plan that did document itself is the fastest way to teach a reader that
+    these warnings can be ignored.
     """
-    return re.search(rf"\b{re.escape(name)}\b", plan_text, re.IGNORECASE) is not None
+    lowered = plan_text.lower()
+    if re.search(rf"\b{re.escape(name)}\b", lowered) is not None:
+        return True
+
+    # A loader is only excused by prose describing that loader's own data; a
+    # generator is excused by the plan saying the task is synthetic at all.
+    phrases = _SYNTHETIC_PROSE if name in _SYNTHETIC else _PROSE.get(name, ())
+    return any(phrase in lowered for phrase in phrases)
 
 
 def dataset_substitutions(code: str, plan_text: str, claim_id: str) -> list[str]:
