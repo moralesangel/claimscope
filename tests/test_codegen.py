@@ -148,3 +148,50 @@ class TestGeneratedCodeValidation:
     def test_rejects_empty_code(self) -> None:
         with pytest.raises(ValidationError):
             GeneratedCode(code="   ")
+
+
+class TestIntegrityWarnings:
+    """A substituted dataset must reach the reader, not just the log.
+
+    The report names the plan's dataset. When the script used another one and
+    nothing said so, the report described an experiment that never ran.
+    """
+
+    def _mnist_plan(self) -> ReductionPlan:
+        return ReductionPlan(
+            claim_id="c1",
+            original_setup="Train on full MNIST for 200 epochs.",
+            reduced_setup="Subsample MNIST to 5000 images, 5 epochs.",
+            changes=["Fewer images -- fits the CPU budget."],
+            preserved=["The architecture comparison."],
+            why_claim_should_transfer="Dropout is scale free.",
+            seeds=3,
+            estimated_minutes=5.0,
+            code_source="from_scratch",
+        )
+
+    def test_a_substituted_dataset_is_recorded_as_an_error(self, settings: Settings) -> None:
+        substituted = "from sklearn.datasets import load_digits\nX, y = load_digits()\n"
+        llm = StubLLM([GeneratedCode(code=substituted, summary="trains on digits")])
+
+        result = codegen(_state(plans={"c1": self._mnist_plan()}), settings, llm)
+
+        errors = result.get("errors", [])
+        assert any("load_digits" in e and "mnist" in e for e in errors), errors
+
+    def test_the_script_is_still_written(self, settings: Settings) -> None:
+        """The check is advisory: a flagged claim still runs and reports."""
+        substituted = "from sklearn.datasets import load_digits\nX, y = load_digits()\n"
+        llm = StubLLM([GeneratedCode(code=substituted, summary="trains on digits")])
+
+        result = codegen(_state(plans={"c1": self._mnist_plan()}), settings, llm)
+
+        assert "c1" in result.get("workspace_dirs", {})
+
+    def test_a_faithful_script_records_nothing(self, settings: Settings) -> None:
+        faithful = "X, y = load_mnist_from_disk()\nX_train = X[:5000]\n"
+        llm = StubLLM([GeneratedCode(code=faithful, summary="trains on mnist")])
+
+        result = codegen(_state(plans={"c1": self._mnist_plan()}), settings, llm)
+
+        assert result.get("errors", []) == []

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import typer
 from langchain_core.runnables import RunnableConfig
@@ -23,6 +23,9 @@ from claimscope.session import (
     thread_config,
 )
 from claimscope.tracing import traced_run
+
+if TYPE_CHECKING:
+    from langgraph.types import StateSnapshot
 
 app = typer.Typer(
     name="claimscope",
@@ -318,6 +321,23 @@ def resume(
         raise typer.Exit(1) from exc
 
 
+def _thread_status(snapshot: StateSnapshot) -> str:
+    """Describe where a saved run stopped.
+
+    Four states, not two. A run that crashed mid-node leaves pending tasks that
+    are not interrupts, so treating "no interrupt" as success reported a failed
+    run as done and hid the error that caused it.
+    """
+    task = snapshot.tasks[0] if snapshot.tasks else None
+    if task is not None and task.interrupts:
+        return "[yellow]awaiting review[/yellow]"
+    if task is not None and task.error:
+        return f"[red]failed in {task.name}[/red]"
+    if snapshot.next:
+        return f"[yellow]stopped before {', '.join(snapshot.next)}[/yellow]"
+    return "done"
+
+
 @app.command()
 def threads() -> None:
     """List runs that have a saved checkpoint."""
@@ -343,8 +363,7 @@ def threads() -> None:
 
         for thread_id in ids:
             snapshot = graph.get_state(thread_config(thread_id))
-            waiting = bool(snapshot.tasks and snapshot.tasks[0].interrupts)
-            status = "[yellow]awaiting review[/yellow]" if waiting else "done"
+            status = _thread_status(snapshot)
             table.add_row(thread_id, str(snapshot.values.get("paper_id", "")), status)
 
         console.print(table)

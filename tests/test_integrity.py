@@ -1,0 +1,131 @@
+"""Catching a script that does not run the experiment its plan describes.
+
+A real run reported a CIFAR-10 result computed from sklearn's 8x8 digits and a
+Reuters result computed from make_classification, and reached a verdict on both.
+Nothing in the pipeline noticed. These checks make that visible in the report.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from claimscope.integrity import (
+    corrupted_labels,
+    dataset_substitutions,
+    integrity_warnings,
+)
+
+MNIST_PLAN = "Subsample MNIST to 5000 training images and train a small MLP."
+SYNTHETIC_PLAN = "Generate a synthetic binary classification task with overlapping clusters."
+
+
+class TestDatasetSubstitution:
+    def test_a_stand_in_loader_is_flagged(self) -> None:
+        code = "from sklearn.datasets import load_digits\nX, y = load_digits(return_X_y=True)\n"
+
+        warnings = dataset_substitutions(code, MNIST_PLAN, "c1")
+
+        assert len(warnings) == 1
+        assert "load_digits" in warnings[0]
+        assert "mnist" in warnings[0]
+
+    def test_synthetic_data_under_a_real_plan_is_flagged(self) -> None:
+        code = "from sklearn.datasets import make_classification\nX, y = make_classification()\n"
+
+        warnings = dataset_substitutions(code, MNIST_PLAN, "c1")
+
+        assert len(warnings) == 1
+        assert "make_classification" in warnings[0]
+
+    def test_a_synthetic_plan_may_generate_data(self) -> None:
+        """Nothing is being impersonated when the plan asks for synthetic data."""
+        code = "from sklearn.datasets import make_classification\nX, y = make_classification()\n"
+
+        assert dataset_substitutions(code, SYNTHETIC_PLAN, "c1") == []
+
+    def test_the_named_dataset_is_not_flagged(self) -> None:
+        code = "from sklearn.datasets import load_digits\nX, y = load_digits(return_X_y=True)\n"
+        plan = "Subsample the sklearn digits dataset to 500 images."
+
+        assert dataset_substitutions(code, plan, "c1") == []
+
+    def test_a_comment_mentioning_a_loader_is_not_a_call(self) -> None:
+        """Otherwise a script that considered and rejected a stand-in is flagged."""
+        code = "# We could use load_digits() here but the plan says MNIST\nX = load_mnist()\n"
+
+        assert dataset_substitutions(code, MNIST_PLAN, "c1") == []
+
+    def test_every_substitution_is_reported(self) -> None:
+        code = (
+            "from sklearn.datasets import load_digits, make_blobs\n"
+            "X, y = load_digits(return_X_y=True)\n"
+            "Xb, yb = make_blobs()\n"
+        )
+
+        assert len(dataset_substitutions(code, MNIST_PLAN, "c1")) == 2
+
+
+class TestCorruptedLabels:
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "y_train[noise_idx] = np.random.randint(0, 10, size=n)",
+            "y_train[flip_mask] = np.random.choice(10, size=k)",
+            "y[idx] = random.randint(0, 9)",
+        ],
+    )
+    def test_label_flipping_on_real_data_is_flagged(self, line: str) -> None:
+        code = f"X, y_train = load_mnist()\n{line}\n"
+
+        warnings = corrupted_labels(code, MNIST_PLAN, "c1")
+
+        assert len(warnings) == 1
+        assert "randomises" in warnings[0]
+
+    def test_label_flipping_on_a_synthetic_task_is_allowed(self) -> None:
+        """There is no real signal to bury, and the prompt recommends it there."""
+        code = "y_train[idx] = np.random.randint(0, 2, size=n)\n"
+
+        assert corrupted_labels(code, SYNTHETIC_PLAN, "c1") == []
+
+    def test_ordinary_label_use_is_not_flagged(self) -> None:
+        code = "y_train = y[:1000]\npreds = model.predict(X_test)\nacc = (preds == y_test).mean()\n"
+
+        assert corrupted_labels(code, MNIST_PLAN, "c1") == []
+
+    def test_shuffling_is_not_corruption(self) -> None:
+        """A permutation preserves every label; only reassignment destroys them."""
+        code = "perm = np.random.permutation(len(y))\ny_train = y[perm]\n"
+
+        assert corrupted_labels(code, MNIST_PLAN, "c1") == []
+
+
+class TestCombined:
+    def test_a_clean_script_produces_no_warnings(self) -> None:
+        code = (
+            "import numpy as np\n"
+            "X, y = load_mnist_from_disk()\n"
+            "X_train, y_train = X[:5000], y[:5000]\n"
+        )
+
+        assert integrity_warnings(code, MNIST_PLAN, "c1") == []
+
+    def test_both_kinds_are_reported_together(self) -> None:
+        code = (
+            "from sklearn.datasets import load_digits\n"
+            "X, y_train = load_digits(return_X_y=True)\n"
+            "y_train[idx] = np.random.randint(0, 10, size=n)\n"
+        )
+
+        warnings = integrity_warnings(code, MNIST_PLAN, "c1")
+
+        assert len(warnings) == 2
+
+    def test_the_claim_id_is_named(self) -> None:
+        """The report lists warnings for every claim, so each must say which."""
+        code = "from sklearn.datasets import make_blobs\nX, y = make_blobs()\n"
+
+        assert all(
+            w.startswith("cifar_claim:")
+            for w in integrity_warnings(code, MNIST_PLAN, "cifar_claim")
+        )
