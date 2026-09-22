@@ -129,3 +129,34 @@ class TestCombined:
             w.startswith("cifar_claim:")
             for w in integrity_warnings(code, MNIST_PLAN, "cifar_claim")
         )
+
+
+class TestDeclaredSubstitution:
+    """A stand-in the plan names is a documented reduction, not a misreport.
+
+    The sandbox has no network, so a documented stand-in is the only way to test
+    an MNIST claim at all. Warning about it would fire on every correct plan and
+    train the reader to ignore the warnings that matter.
+    """
+
+    def test_a_loader_the_plan_names_is_allowed(self) -> None:
+        code = "from sklearn.datasets import load_digits\nX, y = load_digits()\n"
+        plan = (
+            "Use sklearn load_digits (1797 8x8 images) standing in for MNIST, "
+            "which the sandbox cannot download."
+        )
+
+        assert dataset_substitutions(code, plan, "c1") == []
+
+    def test_a_generator_the_plan_names_is_allowed(self) -> None:
+        code = "X, y = make_classification(n_samples=2000)\n"
+        plan = "Reuters is unavailable offline; use make_classification as a stand-in corpus."
+
+        assert dataset_substitutions(code, plan, "c1") == []
+
+    def test_an_undeclared_stand_in_is_still_flagged(self) -> None:
+        """The plan must name the substitute, not merely admit a problem."""
+        code = "from sklearn.datasets import load_digits\nX, y = load_digits()\n"
+        plan = "Subsample MNIST to 5000 training images."
+
+        assert len(dataset_substitutions(code, plan, "c1")) == 1

@@ -8,7 +8,7 @@ from claimscope.config import Settings
 from claimscope.nodes.codegen import RUN_SCRIPT
 from claimscope.nodes.debug import debug, needs_debugging
 from claimscope.sandbox.runner import ExecutionFailure, ExecutionResult
-from claimscope.schemas import Claim, CodePatch
+from claimscope.schemas import Claim, CodePatch, ReductionPlan
 from claimscope.state import GraphState
 from stubs import StubLLM
 
@@ -156,3 +156,60 @@ class TestCodePatchValidation:
         patch = CodePatch(diagnosis="d", code=f"{fence}python\nprint(1)\n{fence}")
 
         assert patch.code == "print(1)"
+
+
+class TestDebugIntegrityWarnings:
+    """A patch can reintroduce what codegen was told to avoid.
+
+    The failure the debug node is fixing is usually "cannot download the
+    dataset" -- exactly the pressure that produces a substitute. The prompt
+    forbids it; this records it when it happens anyway.
+    """
+
+    def _mnist_plan(self) -> ReductionPlan:
+        return ReductionPlan(
+            claim_id="c1",
+            original_setup="Train on full MNIST.",
+            reduced_setup="Subsample MNIST to 5000 images.",
+            changes=["Fewer images -- fits the budget."],
+            preserved=["The architecture comparison."],
+            why_claim_should_transfer="Dropout is scale free.",
+            seeds=3,
+            estimated_minutes=5.0,
+            code_source="from_scratch",
+        )
+
+    def test_a_substituting_patch_is_recorded(self, settings: Settings) -> None:
+        substituted = "from sklearn.datasets import load_digits\nX, y = load_digits()\n"
+        llm = StubLLM([CodePatch(diagnosis="no network", code=substituted)])
+
+        result = debug(_state(settings, plans={"c1": self._mnist_plan()}), settings, llm)
+
+        assert any("load_digits" in e for e in result.get("errors", [])), result.get("errors")
+
+    def test_the_patch_is_still_written(self, settings: Settings) -> None:
+        """Advisory: a flagged patch is still applied, so the claim can proceed."""
+        substituted = "from sklearn.datasets import load_digits\nX, y = load_digits()\n"
+        llm = StubLLM([CodePatch(diagnosis="no network", code=substituted)])
+        workspace = _workspace(settings)
+
+        debug(_state(settings, plans={"c1": self._mnist_plan()}), settings, llm)
+
+        assert "load_digits" in (workspace / RUN_SCRIPT).read_text(encoding="utf-8")
+
+    def test_a_faithful_patch_records_nothing(self, settings: Settings) -> None:
+        faithful = "X, y = load_mnist_from_disk()\nX_train = X[:5000]\n"
+        llm = StubLLM([CodePatch(diagnosis="fixed a typo", code=faithful)])
+
+        result = debug(_state(settings, plans={"c1": self._mnist_plan()}), settings, llm)
+
+        assert result.get("errors", []) == []
+
+    def test_no_plan_means_no_check(self, settings: Settings) -> None:
+        """Nothing to compare against; the check must not invent a warning."""
+        substituted = "from sklearn.datasets import load_digits\nX, y = load_digits()\n"
+        llm = StubLLM([CodePatch(diagnosis="no network", code=substituted)])
+
+        result = debug(_state(settings), settings, llm)
+
+        assert result.get("errors", []) == []

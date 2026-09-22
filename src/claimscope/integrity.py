@@ -18,6 +18,10 @@ warning it replaced. They flag, they do not block.
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from claimscope.schemas import ReductionPlan
 
 # Loader -> the datasets it actually provides. A script calling one of these
 # while the plan names something else is training on different data.
@@ -95,11 +99,26 @@ def _calls(code: str, name: str) -> bool:
     return re.search(rf"\b{re.escape(name)}\s*\(", without_comments) is not None
 
 
+def _declares(plan_text: str, name: str) -> bool:
+    """Whether the plan itself names this loader or generator.
+
+    A plan may legitimately say "sklearn's 8x8 digits standing in for MNIST":
+    the sandbox has no network, so a documented stand-in is the only way to test
+    an MNIST claim at all, and invariant 4 asks for exactly that -- the change
+    written down with its justification. What these checks are for is the
+    *undocumented* swap, where the plan promises one dataset and the script
+    quietly uses another.
+    """
+    return re.search(rf"\b{re.escape(name)}\b", plan_text, re.IGNORECASE) is not None
+
+
 def dataset_substitutions(code: str, plan_text: str, claim_id: str) -> list[str]:
     """Warnings for a script training on data its plan does not name.
 
     Empty when the plan names no real dataset: the experiment is then synthetic
-    by design and a generator is the correct choice.
+    by design and a generator is the correct choice. Also empty when the plan
+    declares the stand-in it is using, which is a documented reduction rather
+    than a misreported one.
     """
     named = _mentioned_datasets(plan_text)
     if not named:
@@ -109,7 +128,7 @@ def dataset_substitutions(code: str, plan_text: str, claim_id: str) -> list[str]
     warnings: list[str] = []
 
     for loader, provides in _LOADERS.items():
-        if not _calls(code, loader):
+        if not _calls(code, loader) or _declares(plan_text, loader):
             continue
         # The loader is fine when it provides one of the datasets the plan names.
         if any(any(p in name for p in provides) for name in named):
@@ -120,7 +139,7 @@ def dataset_substitutions(code: str, plan_text: str, claim_id: str) -> list[str]
         )
 
     for generator in _SYNTHETIC:
-        if _calls(code, generator):
+        if _calls(code, generator) and not _declares(plan_text, generator):
             warnings.append(
                 f"{claim_id}: the plan names {expected} but the script generates "
                 f"synthetic data with {generator}() -- the result says nothing about {expected}"
@@ -161,3 +180,12 @@ def integrity_warnings(code: str, plan_text: str, claim_id: str) -> list[str]:
     return dataset_substitutions(code, plan_text, claim_id) + corrupted_labels(
         code, plan_text, claim_id
     )
+
+
+def plan_text(plan: ReductionPlan) -> str:
+    """The plan's prose, for checking what the script was supposed to use.
+
+    Both codegen and debug check their output against this, so it lives here
+    rather than in either node.
+    """
+    return " ".join([plan.original_setup, plan.reduced_setup, *plan.changes, *plan.preserved])

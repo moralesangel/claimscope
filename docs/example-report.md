@@ -4,6 +4,13 @@ A real ClaimScope run, kept as an example of what the tool produces.
 arXiv 1207.0580 (Dropout), analysed with gemini-3.5-flash and executed in the
 subprocess sandbox on a laptop CPU. Every number below came out of an actual
 run; nothing here is illustrative.
+
+One thing this report does not make obvious, and which is worth knowing when
+reading it: the plan says MNIST, but the sandbox has no network, so the script
+trained on scikit-learn's built-in 8x8 digits (1797 images) instead. The effect
+is real and honestly measured, on a smaller and easier dataset than the name
+suggests. The pipeline now flags this kind of substitution in the report's own
+"Errors" section; this run predates that check, and is kept as it was produced.
 -->
 
 # ClaimScope report: Improving neural networks by preventing co-adaptation of feature detectors

@@ -11,6 +11,7 @@ import logging
 from pathlib import Path
 
 from claimscope.config import Settings, get_settings
+from claimscope.integrity import integrity_warnings, plan_text
 from claimscope.llm import ProviderStructuredLLM, StructuredLLM
 from claimscope.nodes.codegen import RUN_SCRIPT, SANDBOX_PACKAGES
 from claimscope.prompts import load_prompt
@@ -56,6 +57,7 @@ def debug(
 
     claims_by_id = {claim.id: claim for claim in state["claims"]}
     workspaces = state.get("workspace_dirs", {})
+    plans = state.get("plans", {})
     failures = dict(state.get("execution_failures", {}))
     attempts = dict(state.get("debug_attempts", {}))
     abandoned = dict(state.get("abandoned_claim_ids", {}))
@@ -90,6 +92,16 @@ def debug(
             traceback=failure.traceback_text(),
             llm=llm,
         )
+
+        # The patch rewrites the whole script, so it can reintroduce exactly
+        # what codegen was told to avoid: a stand-in dataset, or label noise
+        # on real data. The failure being fixed is usually "cannot download
+        # the dataset", which is the very pressure that produces a substitute.
+        plan = plans.get(claim_id)
+        if plan is not None:
+            for warning in integrity_warnings(patch.code, plan_text(plan), claim_id):
+                logger.warning("%s", warning)
+                errors.append(warning)
 
         script.write_text(patch.code + "\n", encoding="utf-8")
         attempts[claim_id] = used + 1

@@ -14,7 +14,7 @@ import subprocess
 from pathlib import Path
 
 from claimscope.config import Settings, get_settings
-from claimscope.integrity import integrity_warnings
+from claimscope.integrity import integrity_warnings, plan_text
 from claimscope.llm import ProviderStructuredLLM, StructuredLLM
 from claimscope.prompts import load_prompt
 from claimscope.repo import EntrypointInfo, RepoError, RepoSurvey, survey
@@ -136,11 +136,6 @@ def generate_code_from_repo(
     return llm.invoke_structured(prompt, GeneratedCode)
 
 
-def _plan_text(plan: ReductionPlan) -> str:
-    """The plan's prose, for checking what the script was supposed to use."""
-    return " ".join([plan.original_setup, plan.reduced_setup, *plan.changes, *plan.preserved])
-
-
 def codegen(
     state: GraphState,
     settings: Settings | None = None,
@@ -178,7 +173,7 @@ def codegen(
         # something else makes the report describe an experiment that never
         # ran. The prompt forbids it; these warnings catch the times it does
         # happen, and reach the reader through the report's errors section.
-        for warning in integrity_warnings(generated.code, _plan_text(plan), claim_id):
+        for warning in integrity_warnings(generated.code, plan_text(plan), claim_id):
             logger.warning("%s", warning)
             errors.append(warning)
 

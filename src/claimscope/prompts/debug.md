@@ -23,8 +23,13 @@ Outcome: {failure_summary}
 
 ## Constraints
 
-- **No network access.** If the script tries to download anything, replace that with synthetic data
-  or a dataset bundled in an installed package.
+- **No network access.** The sandbox cannot download anything, so a fetch will always fail.
+- **Do not substitute a different dataset to make the script run.** The report names the dataset
+  the plan asked for, so a script that quietly trains on another one makes the report describe an
+  experiment that never happened, and the reader cannot tell. `load_digits()` is not MNIST and
+  `make_classification()` is not Reuters. If the dataset the plan names cannot be loaded without
+  the network, say exactly that in your diagnosis and let the script fail. A claim reported as
+  failed is a correct outcome; a confident number computed from the wrong data is not.
 - **Only these packages are available:** {packages}.
 - The script must keep its interface: `--arm <name>`, `--seed <int>`, optional `--steps <int>`, and
   it must write `result.json` containing `arm`, `seed`, `metric` and `metric_name`.
@@ -34,8 +39,11 @@ Outcome: {failure_summary}
   that makes it correct.
 - **If the runs all returned the same value**, the script did not crash -- it measured nothing.
   Usually the task is too easy: a model that scores perfectly on both arms leaves no room for the
-  effect. Make the task harder in a way that keeps the comparison fair: add label noise, shrink the
-  training set, or increase the noise in the data-generating rule. Do not change only one arm.
+  effect. Make the task harder in a way that keeps the comparison fair, and never by corrupting
+  real data: shrink the training set, or if the data is generated from scratch, increase the noise
+  in the rule that produces it. **Never randomise the labels of a real dataset** -- it does not
+  make the task harder, it destroys the signal, and both arms then score alike for the opposite
+  reason. Whatever you change, change it for both arms.
 
 ## Output
 
