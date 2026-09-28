@@ -219,9 +219,7 @@ class TestClaimShapesThisAnalysisCannotSettle:
     dropped adagrad and read the "~=" as ">".
     """
 
-    def test_a_three_arm_claim_is_not_forced_into_a_two_arm_test(
-        self, settings: Settings
-    ) -> None:
+    def test_a_three_arm_claim_is_not_forced_into_a_two_arm_test(self, settings: Settings) -> None:
         claim = _claim(arms=["adam", "sgd_nesterov", "adagrad"])
         claim.expected_direction = "adam > sgd_nesterov > adagrad"
         state = _state(
@@ -248,8 +246,7 @@ class TestClaimShapesThisAnalysisCannotSettle:
         state = _state(
             claims=[claim],
             run_results={
-                "c1": _runs("treatment", [0.90, 0.91, 0.89])
-                + _runs("control", [0.50, 0.51, 0.49])
+                "c1": _runs("treatment", [0.90, 0.91, 0.89]) + _runs("control", [0.50, 0.51, 0.49])
             },
         )
 
