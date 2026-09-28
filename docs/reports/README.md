@@ -1,13 +1,13 @@
-# Informes
+# Reports
 
-Papers analizados con `claude-sonnet-5` y el sandbox de subproceso. Cada informe lista todas
-las afirmaciones extraídas del paper, cuáles se consideraron comprobables a escala reducida,
-el plan de reducción que se diseñó y el veredicto con su intervalo de confianza.
+Papers analysed with `claude-sonnet-5` and the subprocess sandbox. Each report lists every claim
+extracted from the paper, which ones were judged testable at reduced scale, the reduction plan
+that was designed, and the verdict with its confidence interval.
 
-**Estos resultados se produjeron sin aislamiento por contenedor.** Cada informe lo dice en su
-cabecera; trátalos como una demostración del pipeline, no como medidas en las que apoyarse.
+**These results were produced without container isolation.** Each report says so in its header;
+treat them as a demonstration of the pipeline, not as measurements to lean on.
 
-| Paper | arXiv | Consistente | No consistente | Inconcluso | No comprobable |
+| Paper | arXiv | Consistent | Not consistent | Inconclusive | Not testable |
 |---|---|---|---|---|---|
 | [Improving neural networks by preventing co-adapta...](1207.0580.md) | `1207.0580` | 0 | 0 | 2 | 8 |
 | [Very Deep Convolutional Networks for Large-Scale ...](1409.1556.md) | `1409.1556` | 1 | 0 | 1 | 8 |
@@ -23,7 +23,6 @@ cabecera; trátalos como una demostración del pipeline, no como medidas en las 
 | [An Image is Worth 16x16 Words: Transformers for I...](2010.11929.md) | `2010.11929` | 0 | 1 | 1 | 8 |
 | **Total** | | **7** | **4** | **13** | **96** |
 
-Que la mayoría salga "no comprobable" es el resultado esperado, no un fallo: casi todas las
-afirmaciones de un paper de ML dependen de ImageNet, de preentrenamiento o de arquitecturas que
-no caben en un presupuesto de CPU. Un sistema que diera un veredicto para todas se los estaría
-inventando.
+That most come back "not testable" is the expected result rather than a shortfall: nearly every
+claim in an ML paper rests on ImageNet, on pretraining, or on architectures that do not fit a CPU
+budget. A system that returned a verdict for all of them would be inventing them.
