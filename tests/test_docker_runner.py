@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 
 from claimscope.config import Settings
+from claimscope.sandbox import docker_runner
 from claimscope.sandbox.docker_runner import (
     WORKSPACE_MOUNT,
     DockerCPURunner,
@@ -100,7 +101,27 @@ class TestSecurityLimits:
         return client.containers.kwargs
 
     def test_runs_as_a_non_root_user(self, settings: Settings, workspace: Path) -> None:
-        assert self._run_and_capture(settings, workspace)["user"] == "runner"
+        # Either the image's own user, or this process's uid:gid so the
+        # bind-mounted workspace stays writable. Never root, either way.
+        user = self._run_and_capture(settings, workspace)["user"]
+        assert user == "runner" or user.split(":")[0] not in ("0", "")
+
+    def test_never_hands_the_experiment_root(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # Running claimscope itself as root must not make the sandbox root too.
+        monkeypatch.setattr(docker_runner.os, "getuid", lambda: 0, raising=False)
+        monkeypatch.setattr(docker_runner.os, "getgid", lambda: 0, raising=False)
+
+        assert docker_runner._container_user() == "runner"
+
+    def test_matches_the_host_uid_so_the_workspace_is_writable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The bind mount keeps the host's ownership, so a mismatched uid cannot
+        # write result.json, which is how every run under Docker would fail.
+        monkeypatch.setattr(docker_runner.os, "getuid", lambda: 1001, raising=False)
+        monkeypatch.setattr(docker_runner.os, "getgid", lambda: 1002, raising=False)
+
+        assert docker_runner._container_user() == "1001:1002"
 
     def test_network_is_disabled(self, settings: Settings, workspace: Path) -> None:
         assert self._run_and_capture(settings, workspace)["network_disabled"] is True

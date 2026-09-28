@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import logging
+import os
 import tarfile
 import time
 from typing import TYPE_CHECKING, Any
@@ -41,6 +42,27 @@ RUN pip install --no-cache-dir --upgrade pip
 USER runner
 WORKDIR /workspace
 """
+
+
+def _container_user() -> str:
+    """The uid:gid the experiment runs as.
+
+    The image ships a non-root `runner` at uid 1000, but the bind-mounted
+    workspace keeps the host's ownership, so a container whose uid does not own
+    it cannot write its own result.json. Matching the host uid keeps the
+    workspace writable while staying non-root -- the property that matters is
+    that generated code is not root, not that it is this particular user.
+
+    Windows has no getuid and its Docker bind mounts do not carry uid
+    ownership, so the image's own user is right there.
+    """
+    getuid = getattr(os, "getuid", None)
+    getgid = getattr(os, "getgid", None)
+    if getuid is None or getgid is None:
+        return "runner"
+    uid, gid = getuid(), getgid()
+    # Refuse to hand the experiment root even if this process has it.
+    return "runner" if uid == 0 else f"{uid}:{gid}"
 
 
 def render_dockerfile(spec: ImageSpec) -> str:
@@ -128,7 +150,7 @@ class DockerCPURunner:
                 # Only the claim's workspace is visible to the experiment.
                 volumes={str(workspace): {"bind": WORKSPACE_MOUNT, "mode": "rw"}},
                 working_dir=WORKSPACE_MOUNT,
-                user="runner",
+                user=_container_user(),
                 network_disabled=not request.network,
                 mem_limit=f"{settings.sandbox_memory_mb}m",
                 nano_cpus=int(settings.sandbox_cpus * 1_000_000_000),

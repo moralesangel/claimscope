@@ -16,6 +16,10 @@ dependencies = [
     "docker>=7.1",
     "numpy>=1.26",
     "scipy>=1.13",
+    # The subprocess sandbox runs experiments in this environment, and every
+    # dataset the planner is allowed to reach for is an sklearn one, so this
+    # is a runtime dependency of the experiments rather than a dev extra.
+    "scikit-learn>=1.4",
     "typer>=0.12",
     "rich>=13.7",
     # Transitive (langgraph, langsmith), pinned here so tool.uv.sources can redirect it.
