@@ -185,9 +185,51 @@ def _is_degenerate(values: list[float]) -> bool:
     return len(set(values)) == 1
 
 
+_EQUIVALENCE = re.compile(
+    r"≈|~=|\bapprox\w*|\bsimilar\w*|\bmatch\w*|\bcomparable\b|\bon par\b|"
+    r"\bno improvement\b|\bdoes not improve\b|\bno benefit\b|\bequal\w*|\bunchanged\b",
+    re.IGNORECASE,
+)
+"""Wording that makes a claim about sameness rather than about a direction.
+
+A claim like `adam ~= sgd_nesterov` predicts the arms will *not* separate.
+Running the usual one-sided comparison on it inverts the reading: a difference
+scores as the claim holding up, and no difference scores as inconclusive, when
+no difference is exactly what the paper predicted.
+"""
+
+
+def _is_equivalence_claim(claim: Claim) -> bool:
+    return bool(_EQUIVALENCE.search(claim.expected_direction or ""))
+
+
 def _verdict_for(claim: Claim, results: list[RunResult]) -> ClaimVerdict:
     """Compare the two arms of one claim and build its verdict."""
     arms = arms_for(claim)
+
+    # Only a two-arm directional claim can be settled by the comparison below.
+    # The other two shapes are recorded as untested rather than forced through
+    # it: forcing them answers a question the claim never asked, and a false
+    # "not consistent" is the worst thing this tool can emit.
+    if len(arms) > 2:
+        return _inconclusive(
+            claim.id,
+            f"This claim compares {len(arms)} arms ({', '.join(arms)}), and the analysis can "
+            f"only settle a two-arm comparison. Testing {arms[0]} against {arms[1]} alone "
+            "would answer a different question from the one the claim asks, so no verdict is "
+            "given. The runs are in the workspace.",
+        )
+
+    if _is_equivalence_claim(claim):
+        return _inconclusive(
+            claim.id,
+            f'This claim predicts the arms are alike ("{claim.expected_direction}"), not that '
+            "one beats the other. Settling it needs an equivalence test against a stated "
+            "margin, which this analysis does not implement. A one-sided comparison would "
+            "read a difference as the claim holding up and no difference as inconclusive, "
+            "inverting it. The runs are in the workspace.",
+        )
+
     treatment_name, control_name = arms[0], arms[1]
 
     treatment = _arm_values(results, treatment_name)

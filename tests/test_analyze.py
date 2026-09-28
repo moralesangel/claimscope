@@ -211,6 +211,70 @@ class TestArmIntegrity:
         assert "Missing results" in verdict.notes
 
 
+class TestClaimShapesThisAnalysisCannotSettle:
+    """Claim shapes the one-sided comparison would answer wrongly.
+
+    Both came out of running real papers: Adam's `adam ~= sgd_nesterov >
+    adagrad` was reported "not consistent" from a two-arm test that silently
+    dropped adagrad and read the "~=" as ">".
+    """
+
+    def test_a_three_arm_claim_is_not_forced_into_a_two_arm_test(
+        self, settings: Settings
+    ) -> None:
+        claim = _claim(arms=["adam", "sgd_nesterov", "adagrad"])
+        claim.expected_direction = "adam > sgd_nesterov > adagrad"
+        state = _state(
+            claims=[claim],
+            run_results={
+                "c1": _runs("adam", [0.10, 0.11, 0.09])
+                + _runs("sgd_nesterov", [0.20, 0.21, 0.19])
+                + _runs("adagrad", [0.30, 0.31, 0.29])
+            },
+        )
+
+        verdict = analyze(state, settings)["verdicts"][0]
+        assert verdict.verdict == "inconclusive"
+        assert "3 arms" in verdict.notes
+        # The point of refusing: no effect is reported for a comparison that
+        # was never the one the claim asked for.
+        assert verdict.effect_estimate is None
+
+    def test_an_equivalence_claim_is_not_read_as_directional(self, settings: Settings) -> None:
+        claim = _claim()
+        claim.expected_direction = "treatment approximately equal to control"
+        # Arms that separate cleanly: a directional test would call this
+        # "consistent", which for a sameness claim is backwards.
+        state = _state(
+            claims=[claim],
+            run_results={
+                "c1": _runs("treatment", [0.90, 0.91, 0.89])
+                + _runs("control", [0.50, 0.51, 0.49])
+            },
+        )
+
+        verdict = analyze(state, settings)["verdicts"][0]
+        assert verdict.verdict == "inconclusive"
+        assert "alike" in verdict.notes
+        assert verdict.effect_estimate is None
+
+    def test_a_no_improvement_claim_is_caught_too(self, settings: Settings) -> None:
+        claim = _claim()
+        claim.expected_direction = "A-LRN shows no improvement over A"
+
+        verdict = analyze(_state(claims=[claim]), settings)["verdicts"][0]
+
+        assert verdict.verdict == "inconclusive"
+        assert "alike" in verdict.notes
+
+    def test_an_ordinary_two_arm_claim_still_gets_a_verdict(self, settings: Settings) -> None:
+        # The guard must not swallow the normal case.
+        verdict = analyze(_state(), settings)["verdicts"][0]
+
+        assert verdict.verdict == "consistent_at_reduced_scale"
+        assert verdict.effect_estimate is not None
+
+
 def test_every_claim_receives_a_verdict(settings: Settings) -> None:
     state = _state(
         claims=[_claim(), _claim("c2", claim_type="absolute"), _claim("c3")],
