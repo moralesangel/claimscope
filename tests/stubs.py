@@ -22,7 +22,14 @@ class StubLLM:
     def invoke_structured(self, prompt: str, schema: type[T]) -> T:
         self.prompts.append(prompt)
         if not self.responses:
-            raise AssertionError("StubLLM ran out of canned responses")
+            # Running dry almost always means the graph took an unplanned turn
+            # into the debug loop, and the interesting part is the failure that
+            # sent it there -- which the prompt carries and a bare message
+            # throws away. This cost a CI round-trip once; it should not again.
+            raise AssertionError(
+                f"StubLLM ran out of canned responses; it was asked for "
+                f"{schema.__name__}. Last prompt:\n{prompt[-2000:]}"
+            )
         response = self.responses.pop(0)
         if not isinstance(response, schema):
             raise AssertionError(f"StubLLM was asked for {schema.__name__}, has {type(response)}")
