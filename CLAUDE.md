@@ -1,314 +1,315 @@
 # CLAUDE.md
 
-Reglas persistentes para trabajar en ClaimScope. El plan completo está en [PLAN.md](PLAN.md);
-este fichero recoge las reglas de su sección 11 más el estado actual del proyecto.
+Persistent rules for working on ClaimScope. The full plan is in [PLAN.md](PLAN.md); this file
+carries the rules from its section 11 plus the project's current state.
 
-## Reglas
+## Rules
 
-- Código, nombres y comentarios en inglés. Documentación de usuario en español o inglés según
-  indique el usuario.
-- No avanzar de fase sin cumplir los criterios de aceptación de la fase actual (PLAN.md, sección 10).
-- Ante decisiones de diseño no cubiertas por el plan, preguntar antes de implementar.
-- Consultar la documentación actual de LangGraph antes de usar `interrupt`, `Command` o
-  checkpointers. La API cambia con frecuencia; no asumirla de memoria.
-- Nunca hardcodear claves de API; usar `.env` (ver `.env.example`).
-- Nunca ejecutar código generado por el LLM fuera del sandbox Docker.
-- Prompts en `src/claimscope/prompts/` como ficheros `.md` versionados, no incrustados en el código.
-- Todas las salidas del LLM validadas con Pydantic; si la validación falla, reintentar una vez y
-  registrar el error.
-- Tests con el LLM mockeado por defecto; los tests que llaman a la API real van marcados
-  (`@pytest.mark.llm`) y se ejecutan solo bajo demanda.
-- Commits pequeños con mensajes descriptivos, uno como mínimo por fase.
+- Code, names and comments in English. User-facing documentation in English too.
+- Do not move on from a phase without meeting its acceptance criteria (PLAN.md, section 10).
+- For design decisions the plan does not cover, ask before implementing.
+- Consult the current LangGraph documentation before using `interrupt`, `Command` or
+  checkpointers. The API changes often; do not assume it from memory.
+- Never hardcode API keys; use `.env` (see `.env.example`).
+- Never run LLM-generated code outside the Docker sandbox.
+- Prompts live in `src/claimscope/prompts/` as versioned `.md` files, not embedded in the code.
+- Every LLM output validated with Pydantic; if validation fails, retry once and log the error.
+- Tests with the LLM mocked by default; tests that call the real API are marked
+  (`@pytest.mark.llm`) and run only on demand.
+- Small commits with descriptive messages, at least one per phase.
 
-## Invariantes del dominio
+## Domain invariants
 
-Al diseñar o revisar un `ReductionPlan` (PLAN.md, sección 2):
+When designing or reviewing a `ReductionPlan` (PLAN.md, section 2):
 
-1. Ambos brazos de una comparación reciben exactamente el mismo presupuesto, dataset, reducción y
-   número de semillas.
-2. Mínimo 3 semillas por brazo.
-3. Se conserva la arquitectura; se reduce profundidad, anchura, datos o pasos.
-4. Todo cambio respecto al paper se documenta con su justificación.
+1. Both arms of a comparison get exactly the same budget, dataset, reduction and number of seeds.
+2. At least 3 seeds per arm.
+3. The architecture is preserved; depth, width, data or steps are what shrink.
+4. Every change from the paper is documented with its justification.
 
-Un resultado negativo a escala reducida NO refuta el paper. El informe siempre debe indicarlo.
+A negative result at reduced scale does NOT refute the paper. The report must always say so.
 
-## Comandos
+## Commands
 
 ```bash
-uv sync --all-extras                    # instalar dependencias
+uv sync --all-extras                    # install dependencies
 uv run python -m claimscope.cli --help  # CLI
 uv run python -m ruff check .           # lint
-uv run python -m ruff format .          # formato
-uv run python -m mypy src               # tipos
-uv run python -m pytest                 # tests (LLM mockeado)
-uv run python -m pytest -m llm          # tests contra la API real, bajo demanda
+uv run python -m ruff format .          # formatting
+uv run python -m mypy src               # types
+uv run python -m pytest                 # tests (LLM mocked)
+uv run python -m pytest -m llm          # tests against the real API, on demand
 ```
 
-## Entorno
+## Environment
 
-- Python 3.11+ (mypy apunta a 3.12: los stubs de numpy usan sintaxis de esa versión).
-- Desarrollo sin CUDA: los experimentos deben correr en CPU en pocos minutos.
-- **LangGraph 1.x**, no la serie 0.2.x que sugiere el plan. Consultar su documentación antes de
-  tocar `interrupt`, `Command` o checkpointers.
-- Los comandos se invocan como `uv run python -m <modulo>`, no por el nombre del ejecutable: en
-  algunas máquinas Windows los shims `.exe` del entorno virtual están bloqueados por políticas de
-  integridad de código.
-- `vendor/xxhash_pure/` existe porque la rueda nativa de `xxhash` puede estar bloqueada en Windows
-  con Smart App Control, y LangGraph la importa a nivel de módulo. Implementa XXH3-128 en Python
-  puro, validado contra los 12 483 vectores oficiales, así que los checkpoints son portables. En
-  una máquina sin esa restricción, basta quitar la entrada de `[tool.uv.sources]`.
+- Python 3.11+ (mypy targets 3.12: the numpy stubs use that version's syntax).
+- Development without CUDA: experiments must run on CPU in a few minutes.
+- **LangGraph 1.x**, not the 0.2.x series the plan suggests. Consult its documentation before
+  touching `interrupt`, `Command` or checkpointers.
+- Commands are invoked as `uv run python -m <module>` rather than by executable name: on some
+  Windows machines the virtualenv's `.exe` shims are blocked by code integrity policies.
+- `vendor/xxhash_pure/` exists because the native `xxhash` wheel can be blocked on Windows with
+  Smart App Control, and LangGraph imports it at module level. It implements XXH3-128 in pure
+  Python, validated against the 12,483 official vectors, so checkpoints stay portable. On a machine
+  without that restriction, removing the `[tool.uv.sources]` entry is enough.
 
-Las particularidades de una máquina concreta van en `CLAUDE.local.md`, que git ignora.
+Anything specific to one machine goes in `CLAUDE.local.md`, which git ignores.
 
-## Estado
+## Status
 
-- **Fase 0 (esqueleto): completada.** Estructura de paquetes, `pyproject.toml`, ruff, mypy, pytest,
-  `.env.example` y CLI con `--help`.
-- **Fase 1 (ingesta y extracción): completada.** Nodos `ingest` y `extract_claims`, grafo lineal,
-  esquemas Pydantic, cliente LLM con validación y un reintento, y `claimscope analyze <arxiv_id>`.
-- **Fase 2 (triage, plan e interrupt): completada.** Nodos `triage`, `design_plan` y `review` con
-  `interrupt`, checkpointer SQLite, y los comandos `resume` y `threads`.
-- **Fase 3 (sandbox y ejecución): implementada, ACEPTACIÓN PENDIENTE.** `Runner`,
-  `DockerCPURunner`, `codegen` from_scratch, `execute` con dry run y bucle `debug`.
+- **Phase 0 (skeleton): complete.** Package structure, `pyproject.toml`, ruff, mypy, pytest,
+  `.env.example`, and a CLI with `--help`.
+- **Phase 1 (ingestion and extraction): complete.** `ingest` and `extract_claims` nodes, a linear
+  graph, Pydantic schemas, an LLM client with validation and one retry, and
+  `claimscope analyze <arxiv_id>`.
+- **Phase 2 (triage, plan and interrupt): complete.** `triage`, `design_plan` and `review` nodes
+  with `interrupt`, a SQLite checkpointer, and the `resume` and `threads` commands.
+- **Phase 3 (sandbox and execution): implemented, ACCEPTANCE PENDING.** `Runner`,
+  `DockerCPURunner`, `codegen` from_scratch, `execute` with a dry run, and the `debug` loop.
 
-  **Docker no está instalado en esta máquina**, así que el criterio de aceptación (un claim de
-  juguete de punta a punta en CPU en menos de 15 min) **no se ha verificado**. El código está
-  completo y testeado contra un `FakeRunner`; `tests/test_sandbox_integration.py` contiene las
-  pruebas de contención reales y se saltan solas mientras no haya demonio. Al instalar Docker:
-  `uv run python -m pytest -m docker` y luego una ejecución real.
+  **Docker is not installed on this machine**, so the acceptance criterion (a toy claim end to end
+  on CPU in under 15 min) **has not been verified** locally. The code is complete and tested
+  against a `FakeRunner`; `tests/test_sandbox_integration.py` holds the real containment checks,
+  which skip on their own without a daemon and run in CI. With Docker installed:
+  `uv run python -m pytest -m docker`, then a real run.
 
-  Docker Desktop necesita WSL2, que a su vez requiere administrador y reiniciar. Ninguna de las
-  dos cosas se puede hacer desde esta sesión.
-- **Fase 4 (análisis e informe): completada.** `stats.py` (bootstrap sobre semillas, Welch de
-  apoyo, regla de veredicto), nodos `analyze` y `report`. Aceptación cumplida: informe Markdown
-  completo para el claim de juguete y tests de la regla de veredicto con datos sintéticos.
-- **Fase 5 (modo repo oficial): implementada, ACEPTACIÓN PENDIENTE.** `repo.py` clona e inspecciona
-  el repositorio del paper, y `codegen` genera un adaptador que lo ejecuta a escala reducida.
-  La aceptación ("un paper real con código oficial llega a veredicto") **necesita Docker**, igual
-  que la fase 3. La inspección sí está verificada contra repos reales (pytorch-cifar, nanoGPT).
-- **Fase 6 (harness de evaluación): completada en lo medible.** `eval/` con anotaciones,
-  emparejamiento de claims, métricas y `run_eval.py`. Tabla producida sobre 2 papers anotados.
+  Docker Desktop needs WSL2, which in turn needs administrator rights and a reboot. Neither can be
+  done from this session.
+- **Phase 4 (analysis and report): complete.** `stats.py` (bootstrap over seeds, Welch as support,
+  the verdict rule), the `analyze` and `report` nodes. Acceptance met: a complete Markdown report
+  for the toy claim, and verdict-rule tests with synthetic data.
+- **Phase 5 (official repo mode): implemented, ACCEPTANCE PENDING.** `repo.py` clones and inspects
+  the paper's repository, and `codegen` generates an adapter that runs it at reduced scale.
+  Acceptance ("a real paper with official code reaches a verdict") **needs Docker**, as phase 3
+  does. The inspection itself is verified against real repos (pytorch-cifar, nanoGPT).
+- **Phase 6 (evaluation harness): complete in what can be measured.** `eval/` with annotations,
+  claim matching, metrics and `run_eval.py`. Table produced over 2 annotated papers.
 
-  **Limitación conocida:** las métricas de ejecución y de veredicto no se pueden medir sin Docker.
-  El harness devuelve `measured=False` y la tabla muestra `—`, no `0.00`: un cero afirmaría que el
-  agente falló, cuando lo cierto es que no se midió.
-- **Corpus de evaluación ampliado a 13 papers, 90 claims.** Cumple los 10-15 del plan, con tests que
-  vigilan su equilibrio.
-- **Fase 7 (pulido): completada.** Trazas opcionales (LangSmith y Langfuse), README reescrito con
-  diagrama del grafo, limitaciones y posicionamiento frente a PaperBench y CORE-Bench.
-- **Sandbox de subproceso + notebook de Colab: añadidos.** `CLAIMSCOPE_SANDBOX_BACKEND=subprocess`
-  permite ejecutar donde no hay Docker. **El pipeline ya se ha ejecutado de punta a punta**: un
-  experimento real corre, produce métricas y llega a veredicto (`tests/test_end_to_end.py`).
-- **VALIDADO DE PUNTA A PUNTA CON UN LLM REAL.** Ejecución completa sobre arXiv 1207.0580 con
-  `gemini-3.5-flash` y sandbox de subproceso: 8 claims extraídos, 7 descartados por triage con
-  motivos correctos, experimento reducido a `load_digits`, 10 ejecuciones (2 brazos × 5 semillas),
-  veredicto `consistent_at_reduced_scale` con efecto +0.068, IC [+0.055, +0.082], Welch p=4.4e-05.
-  El informe está guardado en `docs/example-report.md`.
+  **Known limitation:** the execution and verdict metrics cannot be measured without Docker. The
+  harness returns `measured=False` and the table shows `—` rather than `0.00`: a zero would assert
+  that the agent failed, when the truth is that it was not measured.
+- **Evaluation corpus extended to 13 papers, 90 claims.** Meets the plan's 10-15, with tests that
+  watch its balance.
+- **Phase 7 (polish): complete.** Optional tracing (LangSmith and Langfuse), a rewritten README
+  with the graph diagram, limitations, and positioning against PaperBench and CORE-Bench.
+- **Subprocess sandbox + Colab notebook: added.** `CLAIMSCOPE_SANDBOX_BACKEND=subprocess` allows
+  running where there is no Docker. **The pipeline has now run end to end**: a real experiment
+  runs, produces metrics and reaches a verdict (`tests/test_end_to_end.py`).
+- **VALIDATED END TO END WITH A REAL LLM.** A full run over arXiv 1207.0580 with
+  `gemini-3.5-flash` and the subprocess sandbox: 8 claims extracted, 7 discarded by triage with
+  correct reasons, experiment reduced to `load_digits`, 10 runs (2 arms × 5 seeds), verdict
+  `consistent_at_reduced_scale` with effect +0.068, CI [+0.055, +0.082], Welch p=4.4e-05. The
+  report is kept at `docs/example-report.md`.
 
-  El efecto medido es real, pero **el informe de esa ejecución dice "MNIST" y el script usó
-  `load_digits`**. Está anotado en la cabecera de `docs/example-report.md`. Ver más abajo.
-- **Integridad de los experimentos: corregida tras encontrar resultados silenciosamente falsos.**
-  Una ejecución posterior produjo un veredicto de CIFAR-10 calculado sobre los dígitos de 8x8 de
-  sklearn, uno de Reuters calculado con `make_classification`, y los tres scripts aleatorizaban el
-  25% de las etiquetas de entrenamiento. El error de MNIST salía 61% en vez de ~5%: ambos brazos
-  ajustaban etiquetas destruidas, así que ninguno podía ganar.
+  The measured effect is real, but **that run's report says "MNIST" while the script used
+  `load_digits`**. It is noted in the header of `docs/example-report.md`. See below.
+- **Experiment integrity: fixed after finding silently false results.** A later run produced a
+  CIFAR-10 verdict computed over sklearn's 8x8 digits, a Reuters one computed with
+  `make_classification`, and all three scripts randomised 25% of the training labels. MNIST error
+  came out at 61% instead of ~5%: both arms were fitting destroyed labels, so neither could win.
 
-  **La causa era que los tres prompts se contradecían.** `design_plan` pedía preferir MNIST y
-  CIFAR-10, que el sandbox no puede descargar; `codegen` prohibía sustituir; y `debug` ordenaba
-  "replace that with synthetic data" ante cualquier fallo de descarga. El planificador prometía
-  datos imposibles y el nodo `debug` -- que ve justo ese fallo -- los cambiaba en silencio.
+  **The cause was three prompts contradicting each other.** `design_plan` asked for MNIST and
+  CIFAR-10 to be preferred, which the sandbox cannot download; `codegen` forbade substitution; and
+  `debug` ordered "replace that with synthetic data" on any download failure. The planner promised
+  impossible data and the `debug` node -- which sees exactly that failure -- quietly swapped it.
 
-  Los tres prompts ya coinciden: el planificador conoce qué datos existen sin red y debe nombrar
-  el sustituto en `reduced_setup` (invariante 4), y `debug` ya no recomienda sustituir ni corromper
-  etiquetas. `src/claimscope/integrity.py` revisa el script generado y anota en `errors` -- que el
-  informe imprime -- toda sustitución no documentada o corrupción de etiquetas. Es orientativo, no
-  bloqueante: un falso positivo que tumbara un claim costaría más que el aviso.
+  The three prompts now agree: the planner knows which data exists without a network and has to
+  name the substitute in `reduced_setup` (invariant 4), and `debug` no longer recommends
+  substituting or corrupting labels. `src/claimscope/integrity.py` inspects the generated script
+  and records in `errors` -- which the report prints -- any undocumented substitution or label
+  corruption. It advises rather than blocks: a false positive that killed a claim would cost more
+  than the warning.
 
-  **Al tocar uno de esos tres prompts, revisar los otros dos.** Cada uno es razonable por separado;
-  el fallo solo aparece al componerlos, y produce una respuesta segura y equivocada en vez de un
-  error. Y tras cualquier cambio, **leer el `run.py` generado**, no el informe: el informe imprime
-  el plan, no lo que hizo el script.
-- **Un experimento correcto puede seguir sin poder responder.** Con datos honestos, los cuatro
-  claims salieron `inconclusive`: un MLP de 2 capas sobre 1797 dígitos fáciles llega al 5% de error
-  sin sobreajustar, y el dropout no tiene nada que regularizar. El prompt del planificador pide
-  ahora conservar el régimen donde el efecto puede aparecer (para un regularizador, una brecha
-  visible entre train y test en el brazo base).
-- Pendiente, y bloqueado solo por el entorno: el sandbox Docker nunca se ha ejecutado (falta WSL2),
-  y el harness de evaluación no se ha corrido sobre los 13 papers.
+  **When touching one of those three prompts, review the other two.** Each is reasonable on its
+  own; the failure only appears when they compose, and it produces a confident wrong answer rather
+  than an error. And after any change, **read the generated `run.py`**, not the report: the report
+  prints the plan, not what the script did.
+- **A correct experiment can still be unable to answer.** With honest data, all four claims came
+  back `inconclusive`: a 2-layer MLP on 1797 easy digits reaches 5% error without overfitting, and
+  dropout has nothing to regularise. The planner's prompt now asks for the regime where the effect
+  can appear to be preserved (for a regulariser, a visible train/test gap in the baseline arm).
+- Outstanding, and blocked only by the environment: the Docker sandbox has never run locally (no
+  WSL2), and the evaluation harness has not been run over all 13 papers.
 
-### Notas del backend de subproceso
+### Subprocess backend notes
 
-- **No es contención, y no hay que presentarlo como tal.** Bloquea red, limita recursos y sanea el
-  entorno, pero el código que corre en ese proceso puede deshacerlo desde dentro. Es opt-in, avisa
-  al preparar, y marca `unconfined_execution` para que el informe lo diga al lector.
-- **El bloqueo de red se inyecta vía `sitecustomize.py`**, que Python importa al arrancar. Va en un
-  directorio hermano al workspace, no dentro, para que `run.py` no lo importe por accidente.
-- Se parchean `socket.connect`, `create_connection`, `getaddrinfo` y `urllib`, más las variables
-  `HF_HUB_OFFLINE` y `TRANSFORMERS_OFFLINE` como segunda barrera.
-- Los límites de `resource` son solo POSIX: en Windows no aplican y el test correspondiente se salta.
-  En Colab (Linux) sí funcionan.
-- `prepare()` instala en el entorno actual, no en una imagen. Es un efecto secundario real, y otra
-  razón para que este backend sea opt-in.
-- El notebook `notebooks/claimscope_colab.ipynb` verifica el bloqueo de red **antes** de gastar
-  llamadas al modelo.
+- **It is not containment, and must not be presented as such.** It blocks the network, caps
+  resources and scrubs the environment, but code running in that process can undo all of it from
+  inside. It is opt-in, warns on prepare, and sets `unconfined_execution` so the report tells the
+  reader.
+- **The network block is injected through `sitecustomize.py`**, which Python imports at startup. It
+  lives in a directory beside the workspace, not inside it, so `run.py` cannot import it by
+  accident.
+- `socket.connect`, `create_connection`, `getaddrinfo` and `urllib` are patched, plus the
+  `HF_HUB_OFFLINE` and `TRANSFORMERS_OFFLINE` variables as a second barrier.
+- The `resource` limits are POSIX-only: on Windows they do not apply and the matching test skips.
+  On Colab (Linux) they work.
+- `prepare()` installs into the current environment, not into an image. That is a real side effect,
+  and another reason this backend is opt-in.
+- The notebook `notebooks/claimscope_colab.ipynb` verifies the network block **before** spending
+  any model calls.
 
-### Notas de la fase 7
+### Phase 7 notes
 
-- **Las trazas nunca pueden tumbar una ejecución.** Backend mal configurado, paquete ausente o host
-  inalcanzable: se avisa y se sigue sin trazas. `tests/test_tracing.py` lo comprueba explícitamente.
-- **Hay que hacer flush al salir.** Los clientes de trazas agrupan en segundo plano, y una ejecución
-  corta de CLI termina antes de que se envíe nada.
-- `langsmith` funciona aquí porque el shim de `xxhash` lo desbloquea; `langfuse` es un extra
-  opcional (`uv sync --extra tracing`).
-- **El corpus de evaluación no tenía ningún claim que se esperase contradecir.** Eso habría dado
-  nota perfecta a un agente adulador. MAML aporta dos, y hay un test que impide la regresión.
+- **Tracing must never take a run down.** A misconfigured backend, a missing package or an
+  unreachable host: warn and carry on without tracing. `tests/test_tracing.py` checks this
+  explicitly.
+- **Flush on exit.** Tracing clients batch in the background, and a short CLI run finishes before
+  anything is sent.
+- `langsmith` works here because the `xxhash` shim unblocks it; `langfuse` is an optional extra
+  (`uv sync --extra tracing`).
+- **The evaluation corpus had no claim it was expected to contradict.** That would have given a
+  perfect score to a sycophantic agent. MAML contributes two, and a test prevents the regression.
 
-### Notas de la fase 6
+### Phase 6 notes
 
-- **El emparejamiento es léxico por defecto, no con LLM.** El plan sugiere el LLM como juez, pero
-  eso es no determinista y cuesta una llamada por par. `eval/matching.py` usa Jaccard sobre palabras
-  de contenido, ponderando métrica y nombres de brazo, que es lo que distingue claims del mismo
-  paper. Emparejamiento voraz y uno a uno.
-- **La clasificación se puntúa solo sobre los claims emparejados.** Penalizar el tipo de un claim
-  que el agente nunca extrajo contaría el mismo fallo dos veces.
-- **La evaluación auto-aprueba los planes.** Un humano aprobando cada plan mediría al humano, no al
-  agente. Eso implica que se ejecutaría código sin revisar, así que sin sandbox el harness **para
-  antes de ejecutar** en vez de correrlo sin protección.
-- `eval/` necesita `__init__.py` y está incluido en mypy (`files = ["src", "eval"]`).
-- B008 de ruff está desactivado en las CLIs: `typer.Option` en los defaults es su API documentada.
+- **Matching is lexical by default, not LLM-based.** The plan suggests the LLM as judge, but that
+  is non-deterministic and costs a call per pair. `eval/matching.py` uses Jaccard over content
+  words, weighting the metric and the arm names, which is what separates claims from the same
+  paper. Greedy, one-to-one matching.
+- **Classification is scored only over matched claims.** Penalising the type of a claim the agent
+  never extracted would count the same failure twice.
+- **The evaluation auto-approves plans.** A human approving each plan would measure the human, not
+  the agent. That means code would run unreviewed, so without a sandbox the harness **stops before
+  executing** rather than running it unprotected.
+- `eval/` needs an `__init__.py` and is included in mypy (`files = ["src", "eval"]`).
+- Ruff's B008 is disabled in the CLIs: `typer.Option` in defaults is its documented API.
 
-### Notas de la fase 5
+### Phase 5 notes
 
-- **No hay un formato común de configuración.** `pytorch-cifar` solo expone `--lr` con el resto
-  hardcodeado; nanoGPT usa ficheros Python en `config/`. Por eso `repo.py` no intenta *entender* el
-  repo: reúne evidencia (entrypoints, flags, configs, imports) y el prompt pide al modelo que
-  escriba el adaptador contra esa evidencia.
-- **Los imports se infieren del AST, no del `requirements.txt`.** Muchos repos de investigación no
-  declaran dependencias: `pytorch-cifar` no tiene requirements y necesita torch. Sin
-  `infer_imports()` la imagen del sandbox no tendría torch y **toda ejecución fallaría en el primer
-  import**. Se filtran la stdlib (vía `sys.stdlib_module_names`) y los módulos del propio repo.
-- **`execute` llama a `runner.prepare()`** antes de nada. Era un hueco de la fase 3: la imagen no se
-  construía nunca. Las dependencias se instalan ahí, que es el único paso con red.
-- **Un repo que no se puede clonar no cuesta el claim**: se cae a `from_scratch` y se registra el
-  motivo en `errors`.
-- El commit del repo se guarda en `repo_commits` y aparece en el informe. Sin él, el resultado no
-  es reproducible.
+- **There is no common configuration format.** `pytorch-cifar` exposes only `--lr` with the rest
+  hardcoded; nanoGPT uses Python files in `config/`. That is why `repo.py` does not try to
+  *understand* the repo: it gathers evidence (entrypoints, flags, configs, imports) and the prompt
+  asks the model to write the adapter against that evidence.
+- **Imports are inferred from the AST, not from `requirements.txt`.** Many research repos do not
+  declare dependencies: `pytorch-cifar` has no requirements and needs torch. Without
+  `infer_imports()` the sandbox image would have no torch and **every run would fail on the first
+  import**. The stdlib (via `sys.stdlib_module_names`) and the repo's own modules are filtered out.
+- **`execute` calls `runner.prepare()`** before anything else. This was a gap in phase 3: the image
+  was never built. Dependencies are installed there, the one step with network access.
+- **A repo that cannot be cloned does not cost the claim**: it falls back to `from_scratch` and the
+  reason is recorded in `errors`.
+- The repo's commit is stored in `repo_commits` and appears in the report. Without it, the result
+  is not reproducible.
 
-### Notas de la fase 4
+### Phase 4 notes
 
-- **El signo del efecto depende de la métrica.** `metric_direction()` detecta métricas donde menos
-  es mejor (loss, error, perplexity, RMSE, FID...) por palabras completas, no por subcadenas: si no,
-  "lossless" se clasificaría como loss. Equivocarse aquí invierte el veredicto en silencio.
-- **El intervalo se firma antes de aplicar la regla**, de modo que positivo siempre significa "en la
-  dirección que predice el paper". Así la regla de la sección 8 es una sola comparación con cero.
-- **Un intervalo que toca el cero es `inconclusive`**, no consistente. Un límite exactamente en cero
-  no es evidencia de dirección.
-- **Todos los caminos del grafo llegan a `analyze`**, incluido "triage no seleccionó nada". Si no,
-  un paper sin claims verificables no generaría informe y el silencio se leería como éxito.
-- **`build_graph` aplica el serializador a cualquier checkpointer**, no solo al de SQLite. Al probar
-  con `InMemorySaver` reaparecían los avisos de tipos no registrados, que en una versión futura
-  serán errores.
-- Los brazos deben estar emparejados: `analyze` rechaza comparar 3 semillas contra 2 y lo reporta
-  como `inconclusive` con el motivo.
+- **The effect's sign depends on the metric.** `metric_direction()` detects metrics where lower is
+  better (loss, error, perplexity, RMSE, FID...) by whole words, not substrings: otherwise
+  "lossless" would be classified as loss. Getting this wrong inverts the verdict silently.
+- **The interval is signed before the rule is applied**, so positive always means "in the direction
+  the paper predicts". That makes section 8's rule a single comparison against zero.
+- **An interval touching zero is `inconclusive`**, not consistent. A bound exactly at zero is not
+  evidence of direction.
+- **Every path through the graph reaches `analyze`**, including "triage selected nothing".
+  Otherwise a paper with no testable claims would produce no report, and the silence would read as
+  success.
+- **`build_graph` applies the serialiser to any checkpointer**, not only the SQLite one. Testing
+  with `InMemorySaver` brought back the unregistered-type warnings, which will be errors in a
+  future version.
+- Arms must be matched: `analyze` refuses to compare 3 seeds against 2 and reports it as
+  `inconclusive` with the reason.
 
-### Notas de la fase 3
+### Phase 3 notes
 
-- **Los tipos del sandbox también van en `_ALLOWED_MODULES`.** `ExecutionFailure` y
-  `ExecutionResult` viajan en el estado del grafo; `ExecutionRequest` e `ImageSpec` no. El guard de
-  `tests/test_session.py` detectó esta omisión al añadir `GeneratedCode` y `CodePatch`.
-- **`execute` para en el primer fallo.** Un script roto falla igual para cada semilla; seguir solo
-  gasta presupuesto antes de que `debug` pueda arreglarlo.
-- **El dry run mide, no adivina.** Ejecuta `--steps 20`, extrapola con `full_run_steps`, y si no
-  cabe en lo que queda de presupuesto marca el claim en `over_budget_claim_ids` en vez de empezar
-  un estudio que no terminará.
-- **El validador de código quita fences de markdown** (`strip_markdown_fences`) porque el modelo
-  los añade pese a que el prompt lo prohíbe, y respeta los backticks que estén dentro del código.
-- Cuidado al probar fences desde PowerShell: el backtick es su carácter de escape y corrompe la
-  entrada. Usa un fichero `.py`, no `-c` con here-string.
+- **The sandbox's types go in `_ALLOWED_MODULES` too.** `ExecutionFailure` and `ExecutionResult`
+  travel in the graph state; `ExecutionRequest` and `ImageSpec` do not. The guard in
+  `tests/test_session.py` caught this omission when `GeneratedCode` and `CodePatch` were added.
+- **`execute` stops at the first failure.** A broken script fails the same way for every seed;
+  carrying on only spends budget before `debug` can fix it.
+- **The dry run measures rather than guesses.** It runs `--steps 20`, extrapolates with
+  `full_run_steps`, and if it does not fit the remaining budget marks the claim in
+  `over_budget_claim_ids` instead of starting a study that will not finish.
+- **The code validator strips markdown fences** (`strip_markdown_fences`) because the model adds
+  them even though the prompt forbids it, and it respects backticks that are inside the code.
+- Careful testing fences from PowerShell: the backtick is its escape character and corrupts the
+  input. Use a `.py` file, not `-c` with a here-string.
 
-### Notas de la fase 2
+### Phase 2 notes
 
-- **Al reanudar, el nodo se re-ejecuta desde el principio.** Todo lo anterior a `interrupt()` corre
-  dos veces, así que esa parte no debe tener efectos secundarios y la decisión se aplica solo
-  después. Está documentado en el docstring de `nodes/review.py`.
-- **Los esquemas deben registrarse en `session._ALLOWED_MODULES`.** LangGraph avisa al
-  deserializar tipos no registrados y los bloqueará en una versión futura, lo que dejaría las
-  ejecuciones interrumpidas sin poder reanudarse. `tests/test_session.py` falla si añades un
-  esquema y olvidas registrarlo; verificado con `LANGGRAPH_STRICT_MSGPACK=true`.
-- **`max_retries=0` en ambos proveedores.** Sus SDKs reintentan por su cuenta (~40 s en un error de
-  cuota diaria que nunca se resolverá) y ocultan los intentos de nuestro logging. `_is_transient()`
-  decide mejor: distingue congestión de cuota agotada.
-- **El tier gratuito de Gemini da 20 peticiones/día POR MODELO**, no por cuenta
-  (`GenerateRequestsPerDayPerProjectPerModel`). Esto bloqueó el proyecto varios días hasta
-  descubrirlo: con `gemini-3.6-flash` agotado, `gemini-flash-latest` respondía perfectamente y hay
-  más de 20 modelos disponibles con la misma clave.
+- **On resume, the node re-runs from the top.** Everything before `interrupt()` runs twice, so that
+  part must have no side effects and the decision is only applied afterwards. Documented in the
+  docstring of `nodes/review.py`.
+- **Schemas must be registered in `session._ALLOWED_MODULES`.** LangGraph warns when deserialising
+  unregistered types and will block them in a future version, which would leave interrupted runs
+  unable to resume. `tests/test_session.py` fails if you add a schema and forget to register it;
+  verified with `LANGGRAPH_STRICT_MSGPACK=true`.
+- **`max_retries=0` on both providers.** Their SDKs retry on their own (~40 s on a daily quota
+  error that will never resolve) and hide the attempts from our logging. `_is_transient()` decides
+  better: it tells congestion apart from exhausted quota.
+- **Gemini's free tier gives 20 requests/day PER MODEL**, not per account
+  (`GenerateRequestsPerDayPerProjectPerModel`). This blocked the project for days before it was
+  found: with `gemini-3.6-flash` exhausted, `gemini-flash-latest` answered perfectly, and there are
+  more than 20 models available on the same key.
 
-  `Settings.model_chain()` y `DEFAULT_FALLBACKS` implementan el cambio automático: si un modelo se
-  queda sin cuota **o sigue congestionado tras todo el backoff**, se pasa al siguiente. Un 429 por
-  minuto no cambia de modelo, porque eso sí se resuelve esperando.
-- **`claimscope doctor`** comprueba clave, modelo que responde y sandbox antes de gastar cuota. Es
-  lo primero que hay que ejecutar cuando algo falla.
-- La regla "`absolute` nunca es verificable" se aplica en código, no se confía al modelo.
+  `Settings.model_chain()` and `DEFAULT_FALLBACKS` implement the automatic switch: if a model runs
+  out of quota **or stays congested through the whole backoff**, it moves to the next. A per-minute
+  429 does not switch models, because waiting does resolve that one.
+- **`claimscope doctor`** checks the key, a model that answers, and the sandbox before spending
+  quota. It is the first thing to run when something fails.
+- The "`absolute` is never testable" rule is enforced in code, not trusted to the model.
 
-### Modelo local (Ollama)
+### Local model (Ollama)
 
-`CLAIMSCOPE_PROVIDER=ollama` usa un modelo local: sin clave, sin cuota. Instalado y verificado con
-**Qwen3 4B Q4_K_M** (2,5 GB).
+`CLAIMSCOPE_PROVIDER=ollama` uses a local model: no key, no quota. Installed and verified with
+**Qwen3 4B Q4_K_M** (2.5 GB).
 
-**La red bloquea el CDN de Ollama.** `registry.ollama.ai` responde, pero
-`r2.cloudflarestorage.com` da timeout, así que `ollama pull` falla siempre. Hugging Face sí
-funciona: descarga el `.gguf` de ahí y haz `ollama create` con un Modelfile. El Modelfile debe fijar `num_ctx`.
+**The network blocks Ollama's CDN.** `registry.ollama.ai` answers, but `r2.cloudflarestorage.com`
+times out, so `ollama pull` always fails. Hugging Face does work: download the `.gguf` from there
+and `ollama create` with a Modelfile. The Modelfile has to set `num_ctx`.
 
-**`num_ctx` es crítico.** Ollama usa 2048 tokens por defecto, y el prompt de extracción lleva hasta
-60k caracteres (~15k tokens): el paper se truncaría en silencio. Se fija a 24.000 tanto en el
-Modelfile como en `Settings.ollama_context_tokens`.
+**`num_ctx` is critical.** Ollama defaults to 2048 tokens, and the extraction prompt carries up to
+60k characters (~15k tokens): the paper would be truncated silently. It is set to 24,000 both in
+the Modelfile and in `Settings.ollama_context_tokens`.
 
-**Qué se midió (Intel Ultra 5 225H, 14 núcleos, sin GPU usable):**
+**What was measured (Intel Ultra 5 225H, 14 cores, no usable GPU):**
 
-| Tarea | Tiempo | Calidad |
+| Task | Time | Quality |
 |---|---|---|
-| Extracción sobre un extracto corto | 97 s | JSON válido, pero `arms=[]` en todas |
-| Triage de 3 claims | 47 s | Clasificó mal: aprobó el claim de TIMIT (dataset con licencia) |
-| Extracción sobre el paper real (20k chars) | **>15 min, abortado** | — |
+| Extraction over a short excerpt | 97 s | Valid JSON, but `arms=[]` on all of them |
+| Triage of 3 claims | 47 s | Misclassified: approved the TIMIT claim (a licensed dataset) |
+| Extraction over the real paper (20k chars) | **>15 min, aborted** | — |
 
-**Conclusión: sirve para probar el cableado, no para producción.** Tres problemas de calidad que
-Gemini no tiene: no rellena `arms` (lo que rompe `codegen`), confunde `ablation` con `absolute`, y
-el triage deja pasar claims no verificables. Y con un paper completo el tiempo por llamada lo hace
-impracticable: una ejecución son 4+ llamadas.
+**Conclusion: useful for testing the wiring, not for production.** Three quality problems Gemini
+does not have: it does not fill `arms` (which breaks `codegen`), it confuses `ablation` with
+`absolute`, and its triage lets untestable claims through. And on a full paper the time per call
+makes it impractical: one run is 4+ calls.
 
-Úsalo para verificar que el pipeline conecta sin gastar cuota; usa Gemini o Anthropic para juzgar
-la calidad del agente.
+Use it to check the pipeline connects without spending quota; use Gemini or Anthropic to judge the
+agent's quality.
 
-### Proveedores de LLM
+### LLM providers
 
-El plan fija Anthropic. Como esa cuenta no tiene saldo, `llm.py` abstrae el proveedor detrás del
-`Protocol StructuredLLM` y se elige con `CLAIMSCOPE_PROVIDER` (`anthropic` | `google`), sin tocar
-código. `CLAIMSCOPE_MODEL_NAME` vacío toma el modelo por defecto del proveedor.
+The plan fixes on Anthropic. Since that account had no balance, `llm.py` abstracts the provider
+behind the `StructuredLLM` Protocol and it is chosen with `CLAIMSCOPE_PROVIDER`
+(`anthropic` | `google`), without touching code. An empty `CLAIMSCOPE_MODEL_NAME` takes the
+provider's default model.
 
-- **La fase 1 se validó con `gemini-3.6-flash`**, no con Claude. Al volver a Anthropic hay que
-  revalidar: los modelos difieren en cuántos claims extraen y en su fidelidad.
-- **Los modelos `gemini-2.5-*` están retirados** para cuentas nuevas; la serie actual es 3.x.
-- **`gemini-3.1-pro-preview` da 429 con `limit: 0`** en el tier gratuito: no es congestión, es que
-  no está disponible. Solo `flash` funciona con esta clave.
-- Las claves de Gemini pueden llevar prefijo `AQ.` además del clásico `AIza`; ambas van en la
-  `x-goog-api-key`.
-- `_is_transient()` distingue fallos reintentables (503, 429 por congestión) de permanentes
-  (`limit: 0`, saldo agotado, auth). Reintentar un `limit: 0` no sirve de nada.
+- **Phase 1 was validated with `gemini-3.6-flash`**, not with Claude. Going back to Anthropic means
+  revalidating: models differ in how many claims they extract and in their fidelity.
+- **The `gemini-2.5-*` models are retired** for new accounts; the current series is 3.x.
+- **`gemini-3.1-pro-preview` returns 429 with `limit: 0`** on the free tier: that is not
+  congestion, it is unavailability. Only `flash` works with this key.
+- Gemini keys can carry an `AQ.` prefix as well as the classic `AIza`; both go in the
+  `x-goog-api-key` header.
+- `_is_transient()` tells retryable failures (503, 429 from congestion) apart from permanent ones
+  (`limit: 0`, exhausted balance, auth). Retrying a `limit: 0` achieves nothing.
 
-### Notas de la fase 1
+### Phase 1 notes
 
-- **`arxiv` 4.0.1 eliminó `Result.download_pdf`.** Solo expone `pdf_url`; la descarga se hace con
-  `requests` en `nodes/ingest.py`.
-- **Las URLs se parten a mitad en los PDFs.** PyMuPDF extrae
-  `https://github.com/\ntensorflow/tensor2tensor`, así que `find_repo_url` rejunta los saltos que
-  siguen a `/` o `-` antes de buscar. Solo esos: unir tras el punto final de la frase se traga la
-  prosa siguiente. Ambos casos tienen test de regresión con texto real de arXiv 1706.03762.
-- **`ChatAnthropic` tipa su `__init__` como `(*args, **kwargs)`**, así que mypy no valida sus
-  kwargs. Se usan los alias (`model_name`, `api_key`, `timeout`, `stop`), verificados en runtime.
-- **mypy apunta a Python 3.12**, no a 3.11, porque los stubs incluidos en numpy usan sintaxis de
-  3.12. `requires-python` del paquete sigue siendo 3.11.
-- Los tests comparten dobles en `tests/stubs.py`, con `pythonpath = ["tests"]` en el pyproject.
-- **Los tests están aislados del entorno.** Una fixture `autouse` en `conftest.py` borra todas las
-  variables que lee `Settings` y hace `chdir` a un directorio temporal. Sin eso, `Settings` carga
-  el `.env` real del desarrollador y la suite solo pasa en su máquina. Al añadir un campo nuevo a
-  `Settings`, añade su variable a `_SETTINGS_ENV_VARS`.
+- **`arxiv` 4.0.1 removed `Result.download_pdf`.** It only exposes `pdf_url`; the download is done
+  with `requests` in `nodes/ingest.py`.
+- **URLs break across lines in PDFs.** PyMuPDF extracts
+  `https://github.com/\ntensorflow/tensor2tensor`, so `find_repo_url` rejoins the breaks that
+  follow a `/` or a `-` before searching. Only those: joining after a sentence's full stop swallows
+  the prose that follows. Both cases have regression tests with real text from arXiv 1706.03762.
+- **`ChatAnthropic` types its `__init__` as `(*args, **kwargs)`**, so mypy does not validate its
+  kwargs. The aliases are used (`model_name`, `api_key`, `timeout`, `stop`), verified at runtime.
+- **mypy targets Python 3.12**, not 3.11, because the stubs bundled with numpy use 3.12 syntax. The
+  package's `requires-python` is still 3.11.
+- Tests share doubles in `tests/stubs.py`, with `pythonpath = ["tests"]` in the pyproject.
+- **Tests are isolated from the environment.** An `autouse` fixture in `conftest.py` clears every
+  variable `Settings` reads and `chdir`s to a temporary directory. Without it, `Settings` loads the
+  developer's real `.env` and the suite only passes on their machine. When adding a new field to
+  `Settings`, add its variable to `_SETTINGS_ENV_VARS`.

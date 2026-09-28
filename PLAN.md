@@ -1,80 +1,80 @@
-# ClaimScope: plan de implementación
+# ClaimScope: implementation plan
 
-Documento para Claude Code. Léelo entero antes de escribir código. Trabaja fase a fase y no avances a la siguiente hasta cumplir los criterios de aceptación de la actual.
+A document for Claude Code. Read it in full before writing code. Work phase by phase, and do not move to the next one until the current one's acceptance criteria are met.
 
-## 1. Objetivo
+## 1. Goal
 
-Un agente construido con LangGraph que, dado un paper de ML (arXiv), extrae sus afirmaciones, decide cuáles son verificables con un presupuesto de cómputo limitado, diseña una versión reducida del experimento, la ejecuta en un sandbox y emite un veredicto estadísticamente fundamentado.
+An agent built with LangGraph that, given an ML paper (arXiv), extracts its claims, decides which are testable within a limited compute budget, designs a reduced version of the experiment, runs it in a sandbox and issues a statistically grounded verdict.
 
-El proyecto NO pretende reproducir papers a escala completa. Pretende responder: "¿se sostiene esta afirmación relativa a escala reducida?".
+The project does NOT aim to reproduce papers at full scale. It aims to answer: "does this relative claim hold at reduced scale?".
 
-### No objetivos
+### Non-goals
 
-- Reproducir números absolutos de las tablas del paper.
-- Soportar papers cuyo efecto depende de la escala (preentrenamiento de LLMs, capacidades emergentes, scaling laws grandes).
-- Interfaz web en las primeras fases. La interfaz es una CLI.
+- Reproducing absolute numbers from the paper's tables.
+- Supporting papers whose effect depends on scale (LLM pretraining, emergent capabilities, large scaling laws).
+- A web interface in the early phases. The interface is a CLI.
 
-## 2. Conceptos del dominio
+## 2. Domain concepts
 
-### Tipos de afirmación
+### Claim types
 
-| Tipo | Ejemplo | ¿Verificable a escala reducida? |
+| Type | Example | Testable at reduced scale? |
 |---|---|---|
-| `absolute` | "Obtenemos 84.3% top-1 en ImageNet" | No. Se registra y se descarta. |
-| `comparative` | "El método A supera al baseline B" | Sí. Objetivo principal. |
-| `ablation` | "Quitar el componente X empeora el resultado" | Sí. |
-| `scaling_trend` | "La mejora crece con el tamaño del modelo" | Parcialmente, con 3 o 4 puntos pequeños. |
+| `absolute` | "We reach 84.3% top-1 on ImageNet" | No. Recorded and discarded. |
+| `comparative` | "Method A beats baseline B" | Yes. The main target. |
+| `ablation` | "Removing component X makes the result worse" | Yes. |
+| `scaling_trend` | "The improvement grows with model size" | Partly, with 3 or 4 small points. |
 
-### Veredictos
+### Verdicts
 
 - `consistent_at_reduced_scale`
 - `not_consistent_at_reduced_scale`
 - `inconclusive`
-- `not_testable` (asignado en triage)
+- `not_testable` (assigned at triage)
 
-Regla de redacción del informe: un resultado negativo a escala reducida NO refuta el paper. El informe siempre lo indica.
+Report-writing rule: a negative result at reduced scale does NOT refute the paper. The report always says so.
 
-### Reglas de reducción (invariantes)
+### Reduction rules (invariants)
 
-1. Ambos brazos de una comparación reciben exactamente el mismo presupuesto, dataset, reducción y número de semillas.
-2. Mínimo 3 semillas por brazo.
-3. Se conserva la arquitectura; se reduce profundidad, anchura, datos o pasos.
-4. Todo cambio respecto al paper se documenta en el plan de reducción con su justificación.
+1. Both arms of a comparison get exactly the same budget, dataset, reduction and number of seeds.
+2. At least 3 seeds per arm.
+3. The architecture is preserved; depth, width, data or steps are what shrink.
+4. Every change from the paper is documented in the reduction plan with its justification.
 
 ## 3. Stack
 
-- Python 3.11+, gestión con `uv`.
-- `langgraph` y `langchain-core`. Modelo vía `langchain-anthropic`, con el nombre del modelo configurable (por defecto `claude-sonnet-5`).
-- `langgraph-checkpoint-sqlite` para persistencia y reanudación tras interrupts.
-- `pydantic` v2 para todos los esquemas y salidas estructuradas del LLM.
-- `arxiv` (paquete) y `pymupdf` para ingesta de PDFs.
-- `docker` (SDK de Python) para el sandbox.
-- `scipy` y `numpy` para estadística.
-- `typer` y `rich` para la CLI.
-- Trazas con Langfuse (self-hosted o cloud) o LangSmith, detrás de una variable de entorno. Debe funcionar sin trazas.
+- Python 3.11+, managed with `uv`.
+- `langgraph` and `langchain-core`. Model through `langchain-anthropic`, with the model name configurable (default `claude-sonnet-5`).
+- `langgraph-checkpoint-sqlite` for persistence and resuming after interrupts.
+- `pydantic` v2 for every schema and structured LLM output.
+- `arxiv` (the package) and `pymupdf` for PDF ingestion.
+- `docker` (the Python SDK) for the sandbox.
+- `scipy` and `numpy` for statistics.
+- `typer` and `rich` for the CLI.
+- Tracing with Langfuse (self-hosted or cloud) or LangSmith, behind an environment variable. It must work with tracing off.
 - `pytest`, `ruff`, `mypy`.
 
-**Importante:** la API de LangGraph cambia con frecuencia (`interrupt`, `Command`, checkpointers). Antes de implementar el grafo, consulta la documentación actual de la versión instalada en lugar de asumir la API de memoria.
+**Important:** LangGraph's API changes often (`interrupt`, `Command`, checkpointers). Before implementing the graph, consult the current documentation for the installed version rather than assuming the API from memory.
 
-## 4. Estructura del repositorio
+## 4. Repository layout
 
 ```
 claimscope/
   pyproject.toml
   README.md
-  CLAUDE.md                 # reglas persistentes para Claude Code (ver sección 11)
+  CLAUDE.md                 # persistent rules for Claude Code (see section 11)
   .env.example
   src/claimscope/
-    config.py               # settings con pydantic-settings
-    state.py                # esquema del estado del grafo
+    config.py               # settings with pydantic-settings
+    state.py                # the graph state schema
     schemas.py              # Claim, ReductionPlan, RunResult, Verdict...
-    graph.py                # construcción del grafo
+    graph.py                # graph construction
     nodes/
       ingest.py
       extract_claims.py
       triage.py
       design_plan.py
-      review.py             # interrupt de aprobación humana
+      review.py             # human approval interrupt
       codegen.py
       execute.py
       debug.py
@@ -84,25 +84,25 @@ claimscope/
       docker_runner.py
       images/Dockerfile.cpu
     stats.py
-    prompts/                # prompts en ficheros .md versionados
+    prompts/                # prompts as versioned .md files
     cli.py
   eval/
-    annotations/            # papers anotados a mano (JSON)
+    annotations/            # hand-annotated papers (JSON)
     run_eval.py
     metrics.py
   tests/
-  runs/                     # salidas por ejecución (ignorado en git)
+  runs/                     # per-run outputs (git-ignored)
 ```
 
-## 5. Estado del grafo
+## 5. Graph state
 
 ```python
 class Claim(BaseModel):
     id: str
-    text: str                     # parafraseada, con referencia a sección/tabla
-    source_location: str          # p. ej. "Table 2", "Sec. 4.1"
+    text: str                     # paraphrased, referencing a section/table
+    source_location: str          # e.g. "Table 2", "Sec. 4.1"
     claim_type: Literal["absolute", "comparative", "ablation", "scaling_trend"]
-    arms: list[str]               # p. ej. ["method_A", "baseline_B"]
+    arms: list[str]               # e.g. ["method_A", "baseline_B"]
     metric: str
     expected_direction: str       # "A > B", "decreases without X"...
     testable: bool | None = None
@@ -112,7 +112,7 @@ class ReductionPlan(BaseModel):
     claim_id: str
     original_setup: str
     reduced_setup: str
-    changes: list[str]            # cada cambio con justificación
+    changes: list[str]            # each change, with its justification
     preserved: list[str]
     why_claim_should_transfer: str
     seeds: int = 3
@@ -128,7 +128,7 @@ class RunResult(BaseModel):
 
 class ClaimVerdict(BaseModel):
     claim_id: str
-    verdict: Literal[...]         # ver sección 2
+    verdict: Literal[...]         # see section 2
     effect_estimate: float | None
     ci_low: float | None
     ci_high: float | None
@@ -153,52 +153,52 @@ class GraphState(TypedDict):
     errors: list[str]
 ```
 
-## 6. Nodos y flujo
+## 6. Nodes and flow
 
 ```
 ingest -> extract_claims -> triage -> design_plan -> review (interrupt)
-   review --aprobado--> codegen -> execute
-   review --rechazado con feedback--> design_plan
-   execute --error--> debug -> execute   (máx. N intentos por claim)
-   execute --agotado N--> analyze (claim marcada inconclusive con motivo)
+   review --approved--> codegen -> execute
+   review --rejected with feedback--> design_plan
+   execute --error--> debug -> execute   (max N attempts per claim)
+   execute --N exhausted--> analyze (claim marked inconclusive, with the reason)
    execute --ok--> analyze -> report -> END
 ```
 
-### Contratos por nodo
+### Per-node contracts
 
-- **ingest**: descarga PDF de arXiv por ID, extrae texto con PyMuPDF, detecta enlace a repo oficial (GitHub) si existe. Cachea en `runs/<paper_id>/`.
-- **extract_claims**: salida estructurada `list[Claim]`. Paráfrasis, nunca bloques largos copiados del paper. Siempre `source_location`.
-- **triage**: marca `testable` y `triage_reason`. `absolute` es siempre no verificable. Rechaza claims cuyo efecto dependa de la escala o cuyo coste estimado supere el presupuesto. Selecciona como máximo K claims (configurable, por defecto 2).
-- **design_plan**: genera `ReductionPlan` respetando las invariantes de la sección 2. Si hay repo oficial, prioriza `official_repo`.
-- **review**: `interrupt` de LangGraph que muestra el plan en la CLI. El usuario aprueba, rechaza o da feedback en texto. El feedback vuelve a `design_plan`.
-- **codegen**: si `official_repo`, clona y adapta configs y tamaños; si `from_scratch`, genera un script mínimo. En ambos casos produce un único punto de entrada `run.py --arm <arm> --seed <seed>` que escribe un JSON con la métrica.
-- **execute**: primero un dry run corto (p. ej. 20-50 pasos) para medir tiempo real y extrapolar. Si la extrapolación supera el presupuesto restante, vuelve a `design_plan` con ese dato. Si cabe, ejecuta todos los brazos y semillas.
-- **debug**: recibe traceback y código, propone parche. Límite de intentos configurable (por defecto 3).
-- **analyze**: ver sección 8.
-- **report**: Markdown en `runs/<paper_id>/report.md` con claims, triage, plan, resultados, veredictos y limitaciones.
+- **ingest**: downloads the arXiv PDF by ID, extracts the text with PyMuPDF, finds the link to the official repo (GitHub) if there is one. Caches in `runs/<paper_id>/`.
+- **extract_claims**: structured output `list[Claim]`. Paraphrase, never long blocks copied from the paper. Always a `source_location`.
+- **triage**: sets `testable` and `triage_reason`. `absolute` is never testable. Rejects claims whose effect depends on scale or whose estimated cost exceeds the budget. Selects at most K claims (configurable, default 2).
+- **design_plan**: produces a `ReductionPlan` respecting the invariants in section 2. Where there is an official repo, prefers `official_repo`.
+- **review**: a LangGraph `interrupt` that shows the plan in the CLI. The user approves, rejects, or gives feedback as text. The feedback goes back to `design_plan`.
+- **codegen**: with `official_repo`, clones and adapts configs and sizes; with `from_scratch`, generates a minimal script. Either way it produces a single entry point, `run.py --arm <arm> --seed <seed>`, which writes a JSON with the metric.
+- **execute**: a short dry run first (say 20-50 steps) to measure real time and extrapolate. If the extrapolation exceeds the remaining budget, it returns to `design_plan` with that figure. If it fits, it runs every arm and seed.
+- **debug**: receives the traceback and the code, proposes a patch. Attempt limit configurable (default 3).
+- **analyze**: see section 8.
+- **report**: Markdown at `runs/<paper_id>/report.md` with claims, triage, plan, results, verdicts and limitations.
 
 ## 7. Sandbox
 
-- Contenedor Docker, usuario no root, límites de CPU, memoria y tiempo.
-- Instalación de dependencias en una fase separada; la ejecución del experimento corre sin red.
-- Solo se monta el directorio de trabajo del claim.
-- Abstracción `Runner` con implementación `DockerCPURunner`. Dejar la interfaz preparada para un `GPURunner` futuro (GPU local o remota), sin implementarlo aún.
-- El hardware de desarrollo no tiene CUDA: las fases 1 a 5 deben funcionar en CPU con experimentos de pocos minutos.
+- A Docker container, non-root user, with CPU, memory and time limits.
+- Dependencies installed in a separate phase; the experiment itself runs with no network.
+- Only the claim's working directory is mounted.
+- A `Runner` abstraction with a `DockerCPURunner` implementation. Leave the interface ready for a future `GPURunner` (local or remote GPU), without implementing it yet.
+- The development hardware has no CUDA: phases 1 to 5 must work on CPU with experiments of a few minutes.
 
-## 8. Estadística y regla de veredicto
+## 8. Statistics and the verdict rule
 
-- Por brazo: media y desviación típica sobre semillas.
-- Efecto = diferencia de medias en la dirección esperada.
-- Intervalo de confianza por bootstrap (sobre semillas) y test de Welch como apoyo.
-- Regla:
-  - IC entero en la dirección esperada -> `consistent_at_reduced_scale`
-  - IC entero en la dirección opuesta -> `not_consistent_at_reduced_scale`
-  - IC cruza cero -> `inconclusive`
-- Con 3 semillas la potencia es baja: el informe debe decirlo explícitamente. Si sobra presupuesto, el agente puede proponer más semillas en lugar de más pasos.
+- Per arm: mean and standard deviation over seeds.
+- Effect = difference of means in the expected direction.
+- Confidence interval by bootstrap (over seeds), with a Welch test as support.
+- The rule:
+  - CI entirely in the expected direction -> `consistent_at_reduced_scale`
+  - CI entirely in the opposite direction -> `not_consistent_at_reduced_scale`
+  - CI crossing zero -> `inconclusive`
+- With 3 seeds the power is low: the report must say so explicitly. If budget remains, the agent may propose more seeds rather than more steps.
 
-## 9. Evaluación del propio agente
+## 9. Evaluating the agent itself
 
-Formato de anotación (`eval/annotations/<paper_id>.json`):
+Annotation format (`eval/annotations/<paper_id>.json`):
 
 ```json
 {
@@ -210,59 +210,59 @@ Formato de anotación (`eval/annotations/<paper_id>.json`):
 }
 ```
 
-Métricas:
-- Extracción: precisión y recall de claims frente a la anotación (emparejamiento con el LLM como juez más revisión manual de una muestra).
-- Clasificación: accuracy de `claim_type` y `testable`.
-- Ejecución: porcentaje de claims con código que corre sin errores, intentos de debug medios.
-- Veredicto: acuerdo con `expected_verdict`.
-- Coste: tokens y minutos de cómputo por claim.
+Metrics:
+- Extraction: claim precision and recall against the annotation (matched with the LLM as judge, plus manual review of a sample).
+- Classification: accuracy of `claim_type` and `testable`.
+- Execution: share of claims whose code runs without errors, and mean debug attempts.
+- Verdict: agreement with `expected_verdict`.
+- Cost: tokens and compute minutes per claim.
 
-Objetivo: 10-15 papers anotados, incluidos algunos con replicaciones fallidas conocidas (p. ej. informes del ML Reproducibility Challenge).
+Target: 10-15 annotated papers, including some with known failed replications (for instance ML Reproducibility Challenge reports).
 
-## 10. Fases
+## 10. Phases
 
-Cada fase termina con tests pasando, un commit y una actualización breve de `CLAUDE.md`.
+Every phase ends with tests passing, a commit, and a short update to `CLAUDE.md`.
 
-**Fase 0. Esqueleto**
-- `uv init`, estructura de carpetas, `pyproject.toml`, ruff, mypy, pytest, `.env.example`, CLI vacía.
-- Aceptación: `uv run claimscope --help` funciona; CI local (`ruff`, `mypy`, `pytest`) en verde.
+**Phase 0. Skeleton**
+- `uv init`, folder structure, `pyproject.toml`, ruff, mypy, pytest, `.env.example`, an empty CLI.
+- Acceptance: `uv run claimscope --help` works; local CI (`ruff`, `mypy`, `pytest`) green.
 
-**Fase 1. Ingesta y extracción de claims**
-- Nodos `ingest` y `extract_claims`, grafo lineal mínimo.
-- Aceptación: sobre 2 papers de prueba produce `claims.json` válido; tests con el LLM mockeado.
+**Phase 1. Ingestion and claim extraction**
+- `ingest` and `extract_claims` nodes, a minimal linear graph.
+- Acceptance: produces a valid `claims.json` on 2 test papers; tests with the LLM mocked.
 
-**Fase 2. Triage, plan e interrupt**
-- `triage`, `design_plan`, `review` con checkpointer SQLite.
-- Aceptación: se puede interrumpir, cerrar el proceso y reanudar desde la CLI con `claimscope resume <thread_id>`.
+**Phase 2. Triage, plan and interrupt**
+- `triage`, `design_plan`, `review` with a SQLite checkpointer.
+- Acceptance: the run can be interrupted, the process closed, and resumed from the CLI with `claimscope resume <thread_id>`.
 
-**Fase 3. Sandbox y ejecución**
-- Docker runner, `codegen` en modo `from_scratch`, `execute` con dry run, bucle `debug`.
-- Aceptación: un claim de juguete (p. ej. "dropout reduce la diferencia entre loss de train y test en un MLP pequeño en MNIST") corre de punta a punta en CPU en menos de 15 minutos.
+**Phase 3. Sandbox and execution**
+- Docker runner, `codegen` in `from_scratch` mode, `execute` with a dry run, the `debug` loop.
+- Acceptance: a toy claim (say "dropout narrows the gap between train and test loss in a small MLP on MNIST") runs end to end on CPU in under 15 minutes.
 
-**Fase 4. Análisis e informe**
+**Phase 4. Analysis and report**
 - `stats.py`, `analyze`, `report`.
-- Aceptación: informe Markdown completo para el claim de juguete; tests unitarios de la regla de veredicto con datos sintéticos.
+- Acceptance: a complete Markdown report for the toy claim; unit tests of the verdict rule with synthetic data.
 
-**Fase 5. Modo repo oficial**
-- `codegen` en modo `official_repo`: clonar, localizar configs, reducir escala.
-- Aceptación: un paper real con código oficial, elegido por el usuario, llega a veredicto.
+**Phase 5. Official repo mode**
+- `codegen` in `official_repo` mode: clone, locate configs, reduce scale.
+- Acceptance: a real paper with official code, chosen by the user, reaches a verdict.
 
-**Fase 6. Harness de evaluación**
-- `eval/run_eval.py` y métricas de la sección 9.
-- Aceptación: tabla de métricas sobre al menos 5 papers anotados.
+**Phase 6. Evaluation harness**
+- `eval/run_eval.py` and the metrics from section 9.
+- Acceptance: a metrics table over at least 5 annotated papers.
 
-**Fase 7. Pulido**
-- Trazas (Langfuse o LangSmith), README con diagrama del grafo, resultados de la evaluación, limitaciones honestas y posicionamiento frente a trabajos relacionados (PaperBench, CORE-Bench).
+**Phase 7. Polish**
+- Tracing (Langfuse or LangSmith), a README with the graph diagram, the evaluation results, honest limitations, and positioning against related work (PaperBench, CORE-Bench).
 
-## 11. Reglas para Claude Code (copiar a CLAUDE.md)
+## 11. Rules for Claude Code (copy into CLAUDE.md)
 
-- Código, nombres y comentarios en inglés. Documentación de usuario en español o inglés según indique el usuario.
-- No avanzar de fase sin cumplir los criterios de aceptación.
-- Ante decisiones de diseño no cubiertas por este plan, preguntar antes de implementar.
-- Consultar la documentación actual de LangGraph antes de usar `interrupt`, `Command` o checkpointers.
-- Nunca hardcodear claves de API; usar `.env`.
-- Nunca ejecutar código generado por el LLM fuera del sandbox Docker.
-- Prompts en `src/claimscope/prompts/` como ficheros, no incrustados en el código.
-- Todas las salidas del LLM validadas con Pydantic; si la validación falla, reintentar una vez y registrar el error.
-- Tests con el LLM mockeado por defecto; los tests que llaman a la API real van marcados y se ejecutan solo bajo demanda.
-- Commits pequeños con mensajes descriptivos, uno como mínimo por fase.
+- Code, names and comments in English. User-facing documentation in English too.
+- Do not move on from a phase without meeting its acceptance criteria.
+- For design decisions this plan does not cover, ask before implementing.
+- Consult the current LangGraph documentation before using `interrupt`, `Command` or checkpointers.
+- Never hardcode API keys; use `.env`.
+- Never run LLM-generated code outside the Docker sandbox.
+- Prompts live in `src/claimscope/prompts/` as files, not embedded in the code.
+- Every LLM output validated with Pydantic; if validation fails, retry once and log the error.
+- Tests with the LLM mocked by default; tests that call the real API are marked and run only on demand.
+- Small commits with descriptive messages, at least one per phase.
