@@ -1,6 +1,6 @@
 # ClaimScope
 
-[![CI](https://github.com/USER/claimscope/actions/workflows/ci.yml/badge.svg)](https://github.com/USER/claimscope/actions/workflows/ci.yml)
+[![CI](https://github.com/moralesangel/claimscope/actions/workflows/ci.yml/badge.svg)](https://github.com/moralesangel/claimscope/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
@@ -73,6 +73,10 @@ para juzgar la calidad del agente. Probado con Qwen3 4B en un portátil sin GPU:
 llamada, no rellena los brazos de las comparaciones y su triage deja pasar afirmaciones que no son
 verificables. Para resultados en los que confiar, usa un modelo alojado.
 
+**En Windows, exporta `PYTHONIOENCODING=utf-8` antes de ejecutar.** La consola usa cp1252 y una
+ejecución se cae con `UnicodeEncodeError` en cuanto el modelo escribe una flecha o una raya en el
+resumen de un plan — y se cae *antes* de guardar el informe, así que se pierde la tanda entera.
+
 ## Uso
 
 ```bash
@@ -115,6 +119,30 @@ p=4.4e-05. El intervalo queda entero en la dirección que predice el paper.
 
 Lo que esto significa: la *dirección* del efecto de dropout sobrevive al encogimiento. No que se
 hayan reproducido los 160→130 errores que reporta el paper.
+
+### Doce papers
+
+Una tanda sobre doce papers conocidos (VGG, Adam, BatchNorm, DenseNet, MAML, Cutout, mixup, Lottery
+Ticket, NTK, RoBERTa, ViT y dropout), con `claude-sonnet-5` y el sandbox de subproceso. 120
+afirmaciones extraídas en total:
+
+| Veredicto | Nº |
+|---|---|
+| No comprobable a escala reducida | 96 |
+| Inconclusivo | 13 |
+| Consistente a escala reducida | 7 |
+| No consistente a escala reducida | 4 |
+
+**Que el 80% salga "no comprobable" es el resultado, no un fallo.** La mayoría de las afirmaciones
+de un paper de ML dependen de ImageNet, de preentrenamiento, o de arquitecturas que no caben en un
+presupuesto de CPU. Un sistema que devolviera un veredicto para todas estaría inventándoselos.
+
+El efecto más limpio salió de BatchNorm: `bn_enables_sigmoid_training`, +0.84 con IC 95%
+[+0.823, +0.854]. Una red con sigmoides que sin normalización por lotes sencillamente no entrena.
+
+Los doce informes completos están en [`docs/reports/`](docs/reports/), cada uno con las
+afirmaciones extraídas, el motivo de cada descarte en triage, el plan de reducción y los datos por
+semilla.
 
 ## Cómo leer un veredicto
 
@@ -200,6 +228,12 @@ Conviene ser explícito sobre lo que esto no puede hacer.
   puede diferir de la implementación de los autores en formas que importan.
 - **Verifica afirmaciones, no papers.** Un paper con cinco afirmaciones puede tener dos que se
   sostienen a escala reducida y tres que no son comprobables.
+- **Hay formas de afirmación que el análisis no sabe medir**, y las declara en vez de intentarlo:
+  las que comparan tres o más brazos (`adam ≈ sgd_nesterov > adagrad`) y las de equivalencia
+  (`LRN no mejora`). La comparación es de dos brazos y de un solo sentido, así que forzarlas daría
+  un veredicto sobre una pregunta distinta de la que hace la afirmación. En este corpus son 22 y 15
+  afirmaciones respectivamente. Probar una equivalencia como es debido requiere un test frente a un
+  margen declarado de antemano, que no está implementado.
 
 ## Frente a trabajos relacionados
 
@@ -238,9 +272,9 @@ Queda una cosa sin verificar, y conviene saberlo antes de confiar en un resultad
 - **El sandbox Docker nunca se ha ejecutado**, porque la máquina de desarrollo no lo tiene instalado.
   Sus propiedades de contención están testeadas contra un cliente falso, y
   `tests/test_sandbox_integration.py` contiene las pruebas reales, que se saltan solas hasta que haya
-  un demonio disponible.
-- **El sandbox Docker** sigue sin ejecutarse, pero el de subproceso sí: ver el resultado real más
-  arriba.
+  un demonio disponible. **Todos los informes de `runs/` se produjeron con el sandbox de subproceso**,
+  que bloquea la red y limita recursos pero no contiene código hostil. Cada informe lo dice en su
+  cabecera. Trátalos como una demostración del pipeline, no como medidas en las que apoyarse.
 
 Con Docker disponible: `uv run python -m pytest -m docker` y luego un `analyze` real.
 
